@@ -4,6 +4,21 @@ export type JobFairPageView = 'registrations' | 'drafts';
 
 export type JobFairWhatsappFilter = 'verified' | 'unverified';
 
+/** Draft assignee filter: a user id, or unassigned. */
+export type JobFairAssignedToFilter = string;
+
+const ASSIGNED_TO_UUID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+export function parseJobFairAssignedTo(
+  raw: string | null | undefined,
+): JobFairAssignedToFilter | null {
+  const value = raw?.trim() ?? '';
+  if (value === 'unassigned') return 'unassigned';
+  if (ASSIGNED_TO_UUID.test(value)) return value;
+  return null;
+}
+
 export type JobFairSortDir = 'asc' | 'desc';
 
 export const REGISTRATION_SORT_COLUMNS = [
@@ -74,6 +89,7 @@ export type JobFairPageQuery = {
   to: string;
   step: number | null;
   whatsapp: JobFairWhatsappFilter | null;
+  assignedTo: JobFairAssignedToFilter | null;
   sort: string;
   dir: JobFairSortDir;
 };
@@ -91,6 +107,7 @@ export type JobFairQueryPatch = {
   to?: string | null;
   step?: number | null;
   whatsapp?: JobFairWhatsappFilter | null;
+  assignedTo?: JobFairAssignedToFilter | null;
   sort?: string | null;
   dir?: JobFairSortDir | null;
 };
@@ -118,11 +135,12 @@ export function parseJobFairPageQuery(
     whatsappRaw === 'verified' || whatsappRaw === 'unverified'
       ? whatsappRaw
       : null;
+  const assignedTo = parseJobFairAssignedTo(firstParam(params, 'assignedTo'));
   const viewRaw = firstParam(params, 'view');
   const view: JobFairPageView =
     viewRaw === 'drafts' || viewRaw === 'registrations'
       ? viewRaw
-      : step !== null || whatsapp
+      : step !== null || whatsapp || assignedTo
         ? 'drafts'
         : 'registrations';
   const limitRaw = Number(firstParam(params, 'limit')) || 10;
@@ -148,6 +166,7 @@ export function parseJobFairPageQuery(
     to: YMD.test(toRaw) ? toRaw : '',
     step,
     whatsapp,
+    assignedTo,
     sort: sort.sort,
     dir: sort.dir,
   };
@@ -224,6 +243,7 @@ export function applyJobFairQueryPatch(
   writeParam(next, 'to', patch.to);
   writeParam(next, 'step', patch.step);
   writeParam(next, 'whatsapp', patch.whatsapp);
+  writeParam(next, 'assignedTo', patch.assignedTo);
 
   if (patch.sort !== undefined || patch.dir !== undefined) {
     const view = resolvedView(next, patch);
@@ -265,6 +285,7 @@ export const CLEARED_JOB_FAIR_FILTERS: JobFairQueryPatch = {
   to: null,
   step: null,
   whatsapp: null,
+  assignedTo: null,
 };
 
 export function jobFairRegistrationExportQuery(query: JobFairPageQuery): string {

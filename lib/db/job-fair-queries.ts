@@ -853,6 +853,8 @@ export async function listOpenJobFairDrafts(
     to?: string;
     step?: number;
     whatsapp?: JobFairDraftWhatsappFilter;
+    /** User id, or `unassigned`. */
+    assignedTo?: string;
     sort?: JobFairDraftSort;
     dir?: JobFairSortDir;
   },
@@ -900,6 +902,16 @@ export async function listOpenJobFairDrafts(
     query = query.not('whatsapp_verified_at', 'is', null);
   } else if (range?.whatsapp === 'unverified') {
     query = query.is('whatsapp_verified_at', null);
+  }
+  if (range?.assignedTo === 'unassigned') {
+    query = query.is('assigned_to', null);
+  } else if (
+    range?.assignedTo &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      range.assignedTo,
+    )
+  ) {
+    query = query.eq('assigned_to', range.assignedTo);
   }
 
   const term = search?.trim();

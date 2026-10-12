@@ -5,7 +5,10 @@ import {
   listOpenJobFairDrafts,
 } from '@/lib/db/job-fair-queries';
 import { requireJobFairAccess } from '@/lib/job-fair/access';
-import { normalizeJobFairSort } from '@/lib/job-fair/page-query';
+import {
+  normalizeJobFairSort,
+  parseJobFairAssignedTo,
+} from '@/lib/job-fair/page-query';
 
 export async function GET(request: NextRequest) {
   try {
@@ -25,6 +28,7 @@ export async function GET(request: NextRequest) {
       whatsappRaw === 'verified' || whatsappRaw === 'unverified'
         ? whatsappRaw
         : undefined;
+    const assignedTo = parseJobFairAssignedTo(searchParams.get('assignedTo')) ?? undefined;
 
     const sort = normalizeJobFairSort(
       'drafts',
@@ -36,6 +40,7 @@ export async function GET(request: NextRequest) {
       to,
       step,
       whatsapp,
+      assignedTo,
       sort: sort.sort,
       dir: sort.dir,
     });

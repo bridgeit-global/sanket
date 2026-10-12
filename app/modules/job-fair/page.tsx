@@ -82,6 +82,7 @@ async function loadJobFairList(query: JobFairPageQuery): Promise<{
         to: query.to || undefined,
         step: query.step ?? undefined,
         whatsapp: query.whatsapp ?? undefined,
+        assignedTo: query.assignedTo ?? undefined,
         sort: normalizeDraftSort(query),
         dir: query.dir,
       }),

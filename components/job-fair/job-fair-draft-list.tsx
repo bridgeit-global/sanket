@@ -358,6 +358,7 @@ export function JobFairDraftList({
   to,
   step,
   whatsapp,
+  assignedTo,
   sort,
   dir,
   pending,
@@ -369,6 +370,7 @@ export function JobFairDraftList({
   onToChange,
   onStepChange,
   onWhatsappChange,
+  onAssignedToChange,
   onPageChange,
   onPageSizeChange,
   onClear,
@@ -384,6 +386,7 @@ export function JobFairDraftList({
   to: string;
   step: number | null;
   whatsapp: 'verified' | 'unverified' | null;
+  assignedTo: string | null;
   sort: string;
   dir: JobFairSortDir;
   pending: boolean;
@@ -395,6 +398,7 @@ export function JobFairDraftList({
   onToChange: (value: string) => void;
   onStepChange: (value: number | null) => void;
   onWhatsappChange: (value: 'verified' | 'unverified' | null) => void;
+  onAssignedToChange: (value: string | null) => void;
   onPageChange: (page: number) => void;
   onPageSizeChange: (size: number) => void;
   onClear: () => void;
@@ -514,7 +518,7 @@ export function JobFairDraftList({
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const hasSearch = Boolean(
-    search || searchDraft.trim() || from || to || step !== null || whatsapp,
+    search || searchDraft.trim() || from || to || step !== null || whatsapp || assignedTo,
   );
 
   const detailFields = useMemo(() => {
@@ -602,6 +606,33 @@ export function JobFairDraftList({
                   <SelectItem value="all">All</SelectItem>
                   <SelectItem value="verified">WhatsApp verified</SelectItem>
                   <SelectItem value="unverified">WhatsApp not verified</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="min-w-0 space-y-1.5">
+              <div className="text-xs font-medium text-muted-foreground">Assign to</div>
+              <Select
+                value={assignedTo ?? 'all'}
+                onValueChange={(value) => {
+                  onAssignedToChange(value === 'all' ? null : value);
+                }}
+              >
+                <SelectTrigger className="h-10 w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="unassigned">Unassigned</SelectItem>
+                  {assignees.map((person) => (
+                    <SelectItem key={person.id} value={person.id}>
+                      {person.name}
+                    </SelectItem>
+                  ))}
+                  {assignedTo &&
+                  assignedTo !== 'unassigned' &&
+                  !assignees.some((person) => person.id === assignedTo) ? (
+                    <SelectItem value={assignedTo}>Staff</SelectItem>
+                  ) : null}
                 </SelectContent>
               </Select>
             </div>

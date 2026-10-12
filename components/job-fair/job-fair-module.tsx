@@ -415,6 +415,7 @@ export function JobFairModule({
           to={query.to}
           step={query.step}
           whatsapp={query.whatsapp}
+          assignedTo={query.assignedTo}
           sort={query.sort}
           dir={query.dir}
           pending={pending}
@@ -428,6 +429,7 @@ export function JobFairModule({
           onToChange={(value) => commit({ to: value || null }, true)}
           onStepChange={(value) => commit({ step: value }, true)}
           onWhatsappChange={(value) => commit({ whatsapp: value }, true)}
+          onAssignedToChange={(value) => commit({ assignedTo: value }, true)}
           onPageChange={(next) => commit({ page: next })}
           onPageSizeChange={(size) => commit({ limit: size }, true)}
           onClear={() => commit(CLEARED_JOB_FAIR_FILTERS, true)}
