@@ -61,11 +61,6 @@ const DRAFT_STEP_LABELS = [
   'Review',
 ] as const;
 
-type ListResponse = {
-  items: JobFairDraftListItem[];
-  total: number;
-};
-
 function stepLabel(step: number): string {
   return DRAFT_STEP_LABELS[step] ?? DRAFT_STEP_LABELS[0];
 }
@@ -130,7 +125,7 @@ function DraftFollowUpDialog({
 }: {
   item: JobFairDraftListItem | null;
   onClose: () => void;
-  onLogged: (draftId: string) => void;
+  onLogged: () => void;
 }) {
   const [logs, setLogs] = useState<JobFairDraftLog[]>([]);
   const [loading, setLoading] = useState(false);
@@ -184,7 +179,7 @@ function DraftFollowUpDialog({
       const json = (await res.json()) as { log: JobFairDraftLog };
       setLogs((prev) => [json.log, ...prev]);
       setNote('');
-      onLogged(item.id);
+      onLogged();
       toast.success('Follow-up note saved');
     } catch {
       toast.error('Could not save follow-up note');
@@ -291,68 +286,72 @@ function WhatsappVerifyControl({
 }
 
 export function JobFairDraftList({
-  reloadKey = 0,
-  initialFrom = '',
-  initialTo = '',
-  initialStep = null,
-  initialWhatsapp = null,
+  items,
+  total,
+  page,
+  pageSize,
+  search,
+  from,
+  to,
+  step,
+  whatsapp,
+  pending,
+  onSearchCommit,
+  onFromChange,
+  onToChange,
+  onStepChange,
+  onWhatsappChange,
+  onPageChange,
+  onPageSizeChange,
+  onClear,
+  onRefresh,
 }: {
-  reloadKey?: number;
-  initialFrom?: string;
-  initialTo?: string;
-  initialStep?: number | null;
-  initialWhatsapp?: 'verified' | 'unverified' | null;
+  items: JobFairDraftListItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+  search: string;
+  from: string;
+  to: string;
+  step: number | null;
+  whatsapp: 'verified' | 'unverified' | null;
+  pending: boolean;
+  onSearchCommit: (value: string) => void;
+  onFromChange: (value: string) => void;
+  onToChange: (value: string) => void;
+  onStepChange: (value: number | null) => void;
+  onWhatsappChange: (value: 'verified' | 'unverified' | null) => void;
+  onPageChange: (page: number) => void;
+  onPageSizeChange: (size: number) => void;
+  onClear: () => void;
+  onRefresh: () => void;
 }) {
-  const [searchDraft, setSearchDraft] = useState('');
-  const [search, setSearch] = useState('');
-  const [from, setFrom] = useState(initialFrom);
-  const [to, setTo] = useState(initialTo);
-  const [step, setStep] = useState<number | null>(
-    initialStep !== null && initialStep >= 0 && initialStep <= 4 ? initialStep : null,
-  );
-  const [whatsapp, setWhatsapp] = useState<'verified' | 'unverified' | null>(
-    initialWhatsapp === 'verified' || initialWhatsapp === 'unverified'
-      ? initialWhatsapp
-      : null,
-  );
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const [data, setData] = useState<ListResponse | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [searchDraft, setSearchDraft] = useState(search);
   const [selected, setSelected] = useState<JobFairDraftListItem | null>(null);
   const [logDraft, setLogDraft] = useState<JobFairDraftListItem | null>(null);
   const [markingId, setMarkingId] = useState<string | null>(null);
 
-  function bumpLogCount(id: string) {
-    setData((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        items: prev.items.map((item) =>
-          item.id === id ? { ...item, logCount: item.logCount + 1 } : item,
-        ),
-      };
-    });
-    setSelected((prev) =>
-      prev?.id === id ? { ...prev, logCount: prev.logCount + 1 } : prev,
-    );
-  }
+  useEffect(() => {
+    const input = document.getElementById('job-fair-draft-search');
+    if (input && document.activeElement === input) return;
+    setSearchDraft(search);
+  }, [search]);
 
-  function applyVerified(id: string, whatsappVerifiedAt: string) {
-    setData((prev) => {
+  useEffect(() => {
+    setSelected((prev) => {
       if (!prev) return prev;
-      const hide = whatsapp === 'unverified';
-      return {
-        items: prev.items
-          .map((item) => (item.id === id ? { ...item, whatsappVerifiedAt } : item))
-          .filter((item) => !(hide && item.id === id)),
-        total: hide ? Math.max(0, prev.total - 1) : prev.total,
-      };
+      return items.find((item) => item.id === prev.id) ?? prev;
     });
-    setSelected((prev) =>
-      prev?.id === id ? { ...prev, whatsappVerifiedAt } : prev,
-    );
-  }
+  }, [items]);
+
+  useEffect(() => {
+    const trimmed = searchDraft.trim();
+    if (trimmed === search) return;
+    const handle = setTimeout(() => {
+      onSearchCommit(trimmed);
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [onSearchCommit, search, searchDraft]);
 
   async function markWhatsappVerified(item: JobFairDraftListItem) {
     if (item.whatsappVerifiedAt || markingId) return;
@@ -362,9 +361,13 @@ export function JobFairDraftList({
         method: 'POST',
       });
       if (!res.ok) throw new Error('Failed');
-      const json = (await res.json()) as { whatsappVerifiedAt?: string };
-      applyVerified(item.id, json.whatsappVerifiedAt ?? new Date().toISOString());
       toast.success('WhatsApp number marked verified');
+      setSelected((prev) =>
+        prev?.id === item.id
+          ? { ...prev, whatsappVerifiedAt: new Date().toISOString() }
+          : prev,
+      );
+      onRefresh();
     } catch {
       toast.error('Could not mark WhatsApp verified');
     } finally {
@@ -372,50 +375,9 @@ export function JobFairDraftList({
     }
   }
 
-  useEffect(() => {
-    const handle = setTimeout(() => {
-      setSearch((prev) => (prev === searchDraft.trim() ? prev : searchDraft.trim()));
-      setPage(1);
-    }, 300);
-    return () => clearTimeout(handle);
-  }, [searchDraft]);
-
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    const params = new URLSearchParams({
-      page: String(page),
-      limit: String(pageSize),
-    });
-    if (search) params.set('search', search);
-    if (from) params.set('from', from);
-    if (to) params.set('to', to);
-    if (step !== null) params.set('step', String(step));
-    if (whatsapp) params.set('whatsapp', whatsapp);
-    fetch(`/api/job-fair/drafts?${params.toString()}`)
-      .then(async (res) => {
-        if (!res.ok) throw new Error('Failed');
-        return (await res.json()) as ListResponse;
-      })
-      .then((json) => {
-        if (!cancelled) setData(json);
-      })
-      .catch(() => {
-        if (!cancelled) toast.error('Failed to load drafts');
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [search, from, to, step, whatsapp, page, pageSize, reloadKey]);
-
-  const items = data?.items ?? [];
-  const total = data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const hasSearch = Boolean(
-    search || searchDraft || from || to || step !== null || whatsapp,
+    search || searchDraft.trim() || from || to || step !== null || whatsapp,
   );
 
   const detailFields = useMemo(() => {
@@ -457,6 +419,7 @@ export function JobFairDraftList({
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
+              id="job-fair-draft-search"
               placeholder="Search drafts by name or mobile"
               value={searchDraft}
               onChange={(e) => setSearchDraft(e.target.value)}
@@ -469,8 +432,7 @@ export function JobFairDraftList({
               <Select
                 value={step === null ? 'all' : String(step)}
                 onValueChange={(value) => {
-                  setStep(value === 'all' ? null : Number(value));
-                  setPage(1);
+                  onStepChange(value === 'all' ? null : Number(value));
                 }}
               >
                 <SelectTrigger className="h-10 w-full">
@@ -491,10 +453,9 @@ export function JobFairDraftList({
               <Select
                 value={whatsapp ?? 'all'}
                 onValueChange={(value) => {
-                  setWhatsapp(
+                  onWhatsappChange(
                     value === 'verified' || value === 'unverified' ? value : null,
                   );
-                  setPage(1);
                 }}
               >
                 <SelectTrigger className="h-10 w-full">
@@ -511,10 +472,7 @@ export function JobFairDraftList({
               <div className="text-xs font-medium text-muted-foreground">Created from</div>
               <DmyDateInput
                 value={from}
-                onValueChange={(value) => {
-                  setFrom(value);
-                  setPage(1);
-                }}
+                onValueChange={onFromChange}
                 className="h-10 w-full"
               />
             </div>
@@ -522,17 +480,14 @@ export function JobFairDraftList({
               <div className="text-xs font-medium text-muted-foreground">Created to</div>
               <DmyDateInput
                 value={to}
-                onValueChange={(value) => {
-                  setTo(value);
-                  setPage(1);
-                }}
+                onValueChange={onToChange}
                 className="h-10 w-full"
               />
             </div>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-muted-foreground">
-              {loading
+              {pending
                 ? 'Loading…'
                 : `${total} incomplete draft${total === 1 ? '' : 's'}`}
             </p>
@@ -541,12 +496,7 @@ export function JobFairDraftList({
                 variant="ghost"
                 onClick={() => {
                   setSearchDraft('');
-                  setSearch('');
-                  setFrom('');
-                  setTo('');
-                  setStep(null);
-                  setWhatsapp(null);
-                  setPage(1);
+                  onClear();
                 }}
                 className="h-10 w-full sm:w-auto"
               >
@@ -558,13 +508,8 @@ export function JobFairDraftList({
         </div>
       </Card>
 
-      <Card className="min-w-0">
-        {loading && !data ? (
-          <div className="flex items-center justify-center p-10 text-muted-foreground">
-            <Loader2 className="mr-2 size-4 animate-spin" />
-            Loading drafts…
-          </div>
-        ) : items.length === 0 ? (
+      <Card className={`min-w-0 ${pending ? 'opacity-60' : ''}`}>
+        {items.length === 0 ? (
           <div className="p-10 text-center text-sm text-muted-foreground">
             {hasSearch
               ? 'No drafts match this search.'
@@ -689,11 +634,8 @@ export function JobFairDraftList({
             totalPages={totalPages}
             pageSize={pageSize}
             totalItems={total}
-            onPageChange={(p) => setPage(Math.max(1, Math.min(p, totalPages)))}
-            onPageSizeChange={(size) => {
-              setPageSize(size);
-              setPage(1);
-            }}
+            onPageChange={(p) => onPageChange(Math.max(1, Math.min(p, totalPages)))}
+            onPageSizeChange={onPageSizeChange}
           />
         ) : null}
       </Card>
@@ -767,7 +709,7 @@ export function JobFairDraftList({
       <DraftFollowUpDialog
         item={logDraft}
         onClose={() => setLogDraft(null)}
-        onLogged={bumpLogCount}
+        onLogged={onRefresh}
       />
     </div>
   );

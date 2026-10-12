@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState, useTransition } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   CalendarCheck,
   ClipboardList,
@@ -69,37 +70,19 @@ import {
   optionLabel,
 } from '@/lib/job-fair/options';
 import type {
+  JobFairDraftListItem,
   JobFairRegistration,
   JobFairStats,
 } from '@/lib/db/job-fair-queries';
+import {
+  applyJobFairQueryPatch,
+  CLEARED_JOB_FAIR_FILTERS,
+  jobFairRegistrationExportQuery,
+  type JobFairPageQuery,
+  type JobFairQueryPatch,
+} from '@/lib/job-fair/page-query';
 
 const ALL = 'all';
-
-type Filters = {
-  search: string;
-  area: string;
-  qualification: string;
-  experience: string;
-  jobType: string;
-  from: string;
-  to: string;
-};
-
-const EMPTY_FILTERS: Filters = {
-  search: '',
-  area: '',
-  qualification: '',
-  experience: '',
-  jobType: '',
-  from: '',
-  to: '',
-};
-
-type ListResponse = {
-  items: JobFairRegistration[];
-  total: number;
-  stats: JobFairStats;
-};
 
 function areaText(r: JobFairRegistration): string {
   return r.area === AREA_OTHER
@@ -113,13 +96,6 @@ function jobTypesText(r: JobFairRegistration): string[] {
       ? `Other: ${r.jobTypeOther}`
       : optionLabel(JOB_TYPE_OPTIONS, t),
   );
-}
-
-function buildQuery(filters: Filters, extra?: Record<string, string>) {
-  const params = new URLSearchParams();
-  for (const [k, v] of Object.entries(filters)) if (v) params.set(k, v);
-  for (const [k, v] of Object.entries(extra ?? {})) params.set(k, v);
-  return params.toString();
 }
 
 function FilterSelect({
@@ -203,90 +179,81 @@ function StatCard({
 }
 
 export function JobFairModule({
-  initialCheckInCode,
-  initialView = 'registrations',
-  initialFrom = '',
-  initialTo = '',
-  initialStep = null,
-  initialWhatsapp = null,
+  query,
+  checkInCode,
+  stats,
+  total,
+  registrations,
+  drafts,
 }: {
-  initialCheckInCode?: string | null;
-  initialView?: 'registrations' | 'drafts';
-  initialFrom?: string;
-  initialTo?: string;
-  initialStep?: number | null;
-  initialWhatsapp?: 'verified' | 'unverified' | null;
+  query: JobFairPageQuery;
+  checkInCode?: string | null;
+  stats: JobFairStats;
+  total: number;
+  registrations: JobFairRegistration[] | null;
+  drafts: JobFairDraftListItem[] | null;
 }) {
-  const [filters, setFilters] = useState<Filters>({
-    ...EMPTY_FILTERS,
-    from: initialFrom,
-    to: initialTo,
-  });
-  const [searchDraft, setSearchDraft] = useState('');
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const [data, setData] = useState<ListResponse | null>(null);
-  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [pending, startTransition] = useTransition();
+  const [searchDraft, setSearchDraft] = useState(query.search);
   const [selected, setSelected] = useState<JobFairRegistration | null>(null);
   const [openingResume, setOpeningResume] = useState<string | null>(null);
   const [resumePreview, setResumePreview] = useState<{
     fileUrl: string;
     fileName: string;
   } | null>(null);
-  const [reloadKey, setReloadKey] = useState(0);
-  const [view, setView] = useState<'registrations' | 'drafts'>(initialView);
+
+  const commit = useCallback(
+    (patch: JobFairQueryPatch, resetPage = false) => {
+      const qs = applyJobFairQueryPatch(
+        new URLSearchParams(searchParams.toString()),
+        patch,
+        { resetPage },
+      );
+      startTransition(() => {
+        router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+      });
+    },
+    [pathname, router, searchParams],
+  );
+
+  const refresh = useCallback(() => {
+    startTransition(() => {
+      router.refresh();
+    });
+  }, [router]);
 
   useEffect(() => {
+    const input = document.getElementById('job-fair-registration-search');
+    if (input && document.activeElement === input) return;
+    setSearchDraft(query.search);
+  }, [query.search]);
+
+  useEffect(() => {
+    const trimmed = searchDraft.trim();
+    if (trimmed === query.search || query.view !== 'registrations') return;
     const handle = setTimeout(() => {
-      setFilters((prev) =>
-        prev.search === searchDraft.trim() ? prev : { ...prev, search: searchDraft.trim() },
-      );
-      setPage(1);
+      commit({ search: trimmed || null }, true);
     }, 300);
     return () => clearTimeout(handle);
-  }, [searchDraft]);
+  }, [commit, query.search, query.view, searchDraft]);
 
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    fetch(
-      `/api/job-fair/registrations?${buildQuery(filters, {
-        page: String(page),
-        limit: String(pageSize),
-      })}`,
-    )
-      .then(async (res) => {
-        if (!res.ok) throw new Error('Failed');
-        return (await res.json()) as ListResponse;
-      })
-      .then((json) => {
-        if (!cancelled) setData(json);
-      })
-      .catch(() => {
-        if (!cancelled) toast.error('Failed to load registrations');
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [filters, page, pageSize, reloadKey]);
-
-  const setFilter = (key: keyof Filters, value: string) => {
-    setFilters((prev) => ({ ...prev, [key]: value }));
-    setPage(1);
-  };
-
-  const hasFilters = useMemo(
-    () => Object.values(filters).some(Boolean) || Boolean(searchDraft),
-    [filters, searchDraft],
+  const hasFilters = Boolean(
+    query.search ||
+      searchDraft.trim() ||
+      query.area ||
+      query.qualification ||
+      query.experience ||
+      query.jobType ||
+      query.from ||
+      query.to,
   );
 
   const clearFilters = () => {
     setSearchDraft('');
-    setFilters(EMPTY_FILTERS);
-    setPage(1);
+    commit(CLEARED_JOB_FAIR_FILTERS, true);
   };
 
   const copyPublicLink = async () => {
@@ -321,11 +288,13 @@ export function JobFairModule({
     [],
   );
 
-  const exportHref = `/api/job-fair/registrations/export?${buildQuery(filters)}`;
-  const items = data?.items ?? [];
-  const total = data?.total ?? 0;
-  const stats = data?.stats;
+  const exportQuery = jobFairRegistrationExportQuery(query);
+  const exportHref = `/api/job-fair/registrations/export${exportQuery ? `?${exportQuery}` : ''}`;
+  const items = registrations ?? [];
+  const page = query.page;
+  const pageSize = query.limit;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const view = query.view;
 
   return (
     <div className="flex flex-col gap-5">
@@ -355,39 +324,36 @@ export function JobFairModule({
         }
       />
 
-      <JobFairCheckIn
-        initialCode={initialCheckInCode}
-        onCheckedIn={() => setReloadKey((key) => key + 1)}
-      />
+      <JobFairCheckIn initialCode={checkInCode} onCheckedIn={refresh} />
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
         <StatCard
           icon={Users}
           label="Total registrations"
-          value={stats?.total ?? '—'}
+          value={stats.total}
           active={view === 'registrations'}
-          onClick={() => setView('registrations')}
+          onClick={() => commit({ view: 'registrations' }, true)}
         />
-        <StatCard icon={CalendarCheck} label="Checked in" value={stats?.checkedIn ?? '—'} />
-        <StatCard icon={UserCheck} label="Registered today" value={stats?.today ?? '—'} />
-        <StatCard icon={FileText} label="With resume" value={stats?.withResume ?? '—'} />
+        <StatCard icon={CalendarCheck} label="Checked in" value={stats.checkedIn} />
+        <StatCard icon={UserCheck} label="Registered today" value={stats.today} />
+        <StatCard icon={FileText} label="With resume" value={stats.withResume} />
         <StatCard
           icon={ClipboardList}
           label="Incomplete drafts"
-          value={stats?.openDrafts ?? '—'}
+          value={stats.openDrafts}
           active={view === 'drafts'}
-          onClick={() => setView('drafts')}
+          onClick={() => commit({ view: 'drafts' }, true)}
         />
         <StatCard
           icon={MapPin}
           label="Top area"
           value={
-            stats?.topAreas[0]
+            stats.topAreas[0]
               ? optionLabel(AREA_OPTIONS, stats.topAreas[0].area)
               : '—'
           }
           sub={
-            stats?.topAreas.length
+            stats.topAreas.length
               ? stats.topAreas
                 .map((a) => `${optionLabel(AREA_OPTIONS, a.area)} (${a.count})`)
                 .join(', ')
@@ -398,25 +364,41 @@ export function JobFairModule({
 
       <Tabs
         value={view}
-        onValueChange={(next) => setView(next === 'drafts' ? 'drafts' : 'registrations')}
+        onValueChange={(next) =>
+          commit({ view: next === 'drafts' ? 'drafts' : 'registrations' }, true)
+        }
       >
         <TabsList className="h-10 w-full sm:w-auto">
           <TabsTrigger value="registrations" className="flex-1 sm:flex-none">
             Registrations
           </TabsTrigger>
           <TabsTrigger value="drafts" className="flex-1 sm:flex-none">
-            Drafts{stats ? ` (${stats.openDrafts})` : ''}
+            Drafts ({stats.openDrafts})
           </TabsTrigger>
         </TabsList>
       </Tabs>
 
       {view === 'drafts' ? (
         <JobFairDraftList
-          reloadKey={reloadKey}
-          initialFrom={initialFrom}
-          initialTo={initialTo}
-          initialStep={initialStep}
-          initialWhatsapp={initialWhatsapp}
+          items={drafts ?? []}
+          total={total}
+          page={page}
+          pageSize={pageSize}
+          search={query.search}
+          from={query.from}
+          to={query.to}
+          step={query.step}
+          whatsapp={query.whatsapp}
+          pending={pending}
+          onSearchCommit={(value) => commit({ search: value || null }, true)}
+          onFromChange={(value) => commit({ from: value || null }, true)}
+          onToChange={(value) => commit({ to: value || null }, true)}
+          onStepChange={(value) => commit({ step: value }, true)}
+          onWhatsappChange={(value) => commit({ whatsapp: value }, true)}
+          onPageChange={(next) => commit({ page: next })}
+          onPageSizeChange={(size) => commit({ limit: size }, true)}
+          onClear={() => commit(CLEARED_JOB_FAIR_FILTERS, true)}
+          onRefresh={refresh}
         />
       ) : null}
 
@@ -427,6 +409,7 @@ export function JobFairModule({
               <div className="relative">
                 <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
+                  id="job-fair-registration-search"
                   placeholder="Search by name, mobile or registration no."
                   value={searchDraft}
                   onChange={(e) => setSearchDraft(e.target.value)}
@@ -434,22 +417,22 @@ export function JobFairModule({
                 />
               </div>
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-                <FilterSelect label="Area" value={filters.area} onChange={(v) => setFilter('area', v)} options={AREA_OPTIONS} />
-                <FilterSelect label="Qualification" value={filters.qualification} onChange={(v) => setFilter('qualification', v)} options={QUALIFICATION_OPTIONS} />
-                <FilterSelect label="Experience" value={filters.experience} onChange={(v) => setFilter('experience', v)} options={EXPERIENCE_OPTIONS} />
-                <FilterSelect label="Job type" value={filters.jobType} onChange={(v) => setFilter('jobType', v)} options={JOB_TYPE_OPTIONS} />
+                <FilterSelect label="Area" value={query.area} onChange={(v) => commit({ area: v || null }, true)} options={AREA_OPTIONS} />
+                <FilterSelect label="Qualification" value={query.qualification} onChange={(v) => commit({ qualification: v || null }, true)} options={QUALIFICATION_OPTIONS} />
+                <FilterSelect label="Experience" value={query.experience} onChange={(v) => commit({ experience: v || null }, true)} options={EXPERIENCE_OPTIONS} />
+                <FilterSelect label="Job type" value={query.jobType} onChange={(v) => commit({ jobType: v || null }, true)} options={JOB_TYPE_OPTIONS} />
                 <div className="min-w-0 space-y-1.5">
                   <div className="text-xs font-medium text-muted-foreground">Registered from</div>
-                  <DmyDateInput value={filters.from} onValueChange={(v) => setFilter('from', v)} className="h-10 w-full" />
+                  <DmyDateInput value={query.from} onValueChange={(v) => commit({ from: v || null }, true)} className="h-10 w-full" />
                 </div>
                 <div className="min-w-0 space-y-1.5">
                   <div className="text-xs font-medium text-muted-foreground">Registered to</div>
-                  <DmyDateInput value={filters.to} onValueChange={(v) => setFilter('to', v)} className="h-10 w-full" />
+                  <DmyDateInput value={query.to} onValueChange={(v) => commit({ to: v || null }, true)} className="h-10 w-full" />
                 </div>
               </div>
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-sm text-muted-foreground">
-                  {loading ? 'Loading…' : `${total} registration${total === 1 ? '' : 's'}`}
+                  {pending ? 'Loading…' : `${total} registration${total === 1 ? '' : 's'}`}
                 </p>
                 {hasFilters ? (
                   <Button variant="ghost" onClick={clearFilters} className="h-10 w-full sm:w-auto">
@@ -461,13 +444,8 @@ export function JobFairModule({
             </CardContent>
           </Card>
 
-          <Card className="min-w-0">
-            {loading && !data ? (
-              <div className="flex items-center justify-center p-10 text-muted-foreground">
-                <Loader2 className="mr-2 size-4 animate-spin" />
-                Loading registrations…
-              </div>
-            ) : items.length === 0 ? (
+          <Card className={`min-w-0 ${pending ? 'opacity-60' : ''}`}>
+            {items.length === 0 ? (
               <div className="p-10 text-center text-sm text-muted-foreground">
                 {hasFilters ? 'No registrations match these filters.' : 'No registrations yet. Share the public link to get started.'}
               </div>
@@ -578,11 +556,8 @@ export function JobFairModule({
                 totalPages={totalPages}
                 pageSize={pageSize}
                 totalItems={total}
-                onPageChange={(p) => setPage(Math.max(1, Math.min(p, totalPages)))}
-                onPageSizeChange={(size) => {
-                  setPageSize(size);
-                  setPage(1);
-                }}
+                onPageChange={(p) => commit({ page: Math.max(1, Math.min(p, totalPages)) })}
+                onPageSizeChange={(size) => commit({ limit: size }, true)}
               />
             ) : null}
           </Card>
