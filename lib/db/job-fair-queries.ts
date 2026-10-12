@@ -11,6 +11,11 @@ import {
   JOB_FAIR_RECEIPT_DOWNLOAD_LIMIT,
   optionLabel,
 } from '@/lib/job-fair/options';
+import type {
+  JobFairDraftSort,
+  JobFairRegistrationSort,
+  JobFairSortDir,
+} from '@/lib/job-fair/page-query';
 import { generateJobFairRegistrationNo } from '@/lib/job-fair/registration-no';
 import {
   jobFairRegistrationToFormValues,
@@ -134,6 +139,42 @@ function buildWhere(filters: JobFairListFilters) {
     parts.push(sql`created_at < ${istDayStartUtc(filters.to, 1)}::timestamp`);
 
   return parts.reduce((acc, part, i) => (i === 0 ? part : sql`${acc} AND ${part}`));
+}
+
+export type JobFairRegistrationListSort = {
+  column: JobFairRegistrationSort;
+  dir: JobFairSortDir;
+};
+
+function registrationOrder(sort?: JobFairRegistrationListSort) {
+  const column = sort?.column ?? 'createdAt';
+  const dir = sort?.dir ?? 'desc';
+  switch (column) {
+    case 'registrationNo':
+      return dir === 'asc'
+        ? sql`registration_no ASC, id ASC`
+        : sql`registration_no DESC, id DESC`;
+    case 'fullName':
+      return dir === 'asc' ? sql`full_name ASC, id ASC` : sql`full_name DESC, id DESC`;
+    case 'status':
+      return dir === 'asc' ? sql`status ASC, id ASC` : sql`status DESC, id DESC`;
+    case 'mobile':
+      return dir === 'asc' ? sql`mobile ASC, id ASC` : sql`mobile DESC, id DESC`;
+    case 'area':
+      return dir === 'asc' ? sql`area ASC, id ASC` : sql`area DESC, id DESC`;
+    case 'qualification':
+      return dir === 'asc'
+        ? sql`qualification ASC, id ASC`
+        : sql`qualification DESC, id DESC`;
+    case 'experience':
+      return dir === 'asc'
+        ? sql`experience ASC, id ASC`
+        : sql`experience DESC, id DESC`;
+    default:
+      return dir === 'asc'
+        ? sql`created_at ASC, id ASC`
+        : sql`created_at DESC, id DESC`;
+  }
 }
 
 export async function getJobFairRegistrationNoByMobile(
@@ -420,14 +461,16 @@ export async function listJobFairRegistrations(
   filters: JobFairListFilters,
   page: number,
   limit: number,
+  sort?: JobFairRegistrationListSort,
 ): Promise<{ items: JobFairRegistration[]; total: number }> {
   const where = buildWhere(filters);
   const offset = (page - 1) * limit;
+  const order = registrationOrder(sort);
   const [rows, countRows] = await Promise.all([
     sql`
       SELECT ${SELECT_COLUMNS} FROM "JobFairRegistration"
       WHERE ${where}
-      ORDER BY created_at DESC
+      ORDER BY ${order}
       LIMIT ${limit} OFFSET ${offset}
     `,
     sql`SELECT count(*)::int AS total FROM "JobFairRegistration" WHERE ${where}`,
@@ -440,11 +483,12 @@ export async function listJobFairRegistrations(
 
 export async function listAllJobFairRegistrations(
   filters: JobFairListFilters,
+  sort?: JobFairRegistrationListSort,
 ): Promise<JobFairRegistration[]> {
   const rows = await sql`
     SELECT ${SELECT_COLUMNS} FROM "JobFairRegistration"
     WHERE ${buildWhere(filters)}
-    ORDER BY created_at ASC
+    ORDER BY ${registrationOrder(sort)}
   `;
   return rows.map((r) => mapRow(r as Row));
 }
@@ -480,6 +524,7 @@ export type JobFairDraftListItem = {
   area: string;
   areaOther: string;
   qualification: string;
+  createdAt: string;
   updatedAt: string;
   whatsappVerifiedAt: string | null;
   logCount: number;
@@ -500,6 +545,7 @@ type DraftListRow = {
   mobile: string;
   step: number;
   payload: unknown;
+  created_at: string;
   updated_at: string;
   whatsapp_verified_at: string | null;
 };
@@ -540,6 +586,7 @@ function mapDraftListItem(row: DraftListRow): JobFairDraftListItem {
     area: values.area,
     areaOther: values.areaOther,
     qualification: values.qualification,
+    createdAt: String(row.created_at ?? ''),
     updatedAt: String(row.updated_at ?? ''),
     whatsappVerifiedAt: row.whatsapp_verified_at
       ? String(row.whatsapp_verified_at)
@@ -678,6 +725,17 @@ export async function markJobFairDraftWhatsappVerified(
 /** Drafts whose mobile does not already have a submitted registration. */
 export type JobFairDraftWhatsappFilter = 'verified' | 'unverified';
 
+const DRAFT_SORT_COLUMNS: Record<JobFairDraftSort, string> = {
+  fullName: 'payload->values->>fullName',
+  mobile: 'mobile',
+  step: 'step',
+  whatsapp: 'whatsapp_verified_at',
+  area: 'payload->values->>area',
+  qualification: 'payload->values->>qualification',
+  createdAt: 'created_at',
+  updatedAt: 'updated_at',
+};
+
 export async function listOpenJobFairDrafts(
   search: string | undefined,
   page: number,
@@ -687,16 +745,21 @@ export async function listOpenJobFairDrafts(
     to?: string;
     step?: number;
     whatsapp?: JobFairDraftWhatsappFilter;
+    sort?: JobFairDraftSort;
+    dir?: JobFairSortDir;
   },
 ): Promise<{ items: JobFairDraftListItem[]; total: number }> {
   const registered = await registeredMobilesForEvent();
+  const sortColumn = range?.sort ?? 'updatedAt';
+  const ascending = range?.dir === 'asc';
   let query = supabase
     .from('JobFairRegistrationDraft')
-    .select('id, mobile, step, payload, updated_at, whatsapp_verified_at', {
+    .select('id, mobile, step, payload, created_at, updated_at, whatsapp_verified_at', {
       count: 'exact',
     })
     .eq('event_code', JOB_FAIR_EVENT.code)
-    .order('updated_at', { ascending: false });
+    .order(DRAFT_SORT_COLUMNS[sortColumn], { ascending, nullsFirst: false })
+    .order('id', { ascending });
 
   if (registered.length > 0) {
     query = query.not('mobile', 'in', `(${registered.join(',')})`);

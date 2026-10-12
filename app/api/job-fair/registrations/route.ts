@@ -5,6 +5,7 @@ import {
   listJobFairRegistrations,
 } from '@/lib/db/job-fair-queries';
 import { parseJobFairFilters, requireJobFairAccess } from '@/lib/job-fair/access';
+import { normalizeJobFairSort } from '@/lib/job-fair/page-query';
 import { getTodayDateStringIST } from '@/lib/ist-date';
 
 export async function GET(request: NextRequest) {
@@ -16,8 +17,16 @@ export async function GET(request: NextRequest) {
     const page = Math.max(1, Number(searchParams.get('page')) || 1);
     const limit = Math.min(100, Math.max(1, Number(searchParams.get('limit')) || 10));
 
+    const sort = normalizeJobFairSort(
+      'registrations',
+      searchParams.get('sort'),
+      searchParams.get('dir'),
+    );
     const [list, stats] = await Promise.all([
-      listJobFairRegistrations(parseJobFairFilters(searchParams), page, limit),
+      listJobFairRegistrations(parseJobFairFilters(searchParams), page, limit, {
+        column: sort.sort,
+        dir: sort.dir,
+      }),
       getJobFairStats(getTodayDateStringIST()),
     ]);
 

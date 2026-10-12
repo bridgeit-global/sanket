@@ -4,6 +4,61 @@ export type JobFairPageView = 'registrations' | 'drafts';
 
 export type JobFairWhatsappFilter = 'verified' | 'unverified';
 
+export type JobFairSortDir = 'asc' | 'desc';
+
+export const REGISTRATION_SORT_COLUMNS = [
+  'registrationNo',
+  'fullName',
+  'status',
+  'mobile',
+  'area',
+  'qualification',
+  'experience',
+  'createdAt',
+] as const;
+
+export const DRAFT_SORT_COLUMNS = [
+  'fullName',
+  'mobile',
+  'step',
+  'whatsapp',
+  'area',
+  'qualification',
+  'createdAt',
+  'updatedAt',
+] as const;
+
+export type JobFairRegistrationSort = (typeof REGISTRATION_SORT_COLUMNS)[number];
+export type JobFairDraftSort = (typeof DRAFT_SORT_COLUMNS)[number];
+
+export const REGISTRATION_SORT_OPTIONS: ReadonlyArray<{
+  value: JobFairRegistrationSort;
+  label: string;
+}> = [
+  { value: 'registrationNo', label: 'Reg. No' },
+  { value: 'fullName', label: 'Name' },
+  { value: 'status', label: 'Status' },
+  { value: 'mobile', label: 'Mobile' },
+  { value: 'area', label: 'Area' },
+  { value: 'qualification', label: 'Qualification' },
+  { value: 'experience', label: 'Experience' },
+  { value: 'createdAt', label: 'Registered' },
+];
+
+export const DRAFT_SORT_OPTIONS: ReadonlyArray<{
+  value: JobFairDraftSort;
+  label: string;
+}> = [
+  { value: 'fullName', label: 'Name' },
+  { value: 'mobile', label: 'Mobile' },
+  { value: 'step', label: 'Stopped at' },
+  { value: 'whatsapp', label: 'WhatsApp' },
+  { value: 'area', label: 'Area' },
+  { value: 'qualification', label: 'Qualification' },
+  { value: 'createdAt', label: 'Created at' },
+  { value: 'updatedAt', label: 'Last saved' },
+];
+
 export type JobFairPageQuery = {
   view: JobFairPageView;
   page: number;
@@ -17,6 +72,8 @@ export type JobFairPageQuery = {
   to: string;
   step: number | null;
   whatsapp: JobFairWhatsappFilter | null;
+  sort: string;
+  dir: JobFairSortDir;
 };
 
 export type JobFairQueryPatch = {
@@ -32,6 +89,8 @@ export type JobFairQueryPatch = {
   to?: string | null;
   step?: number | null;
   whatsapp?: JobFairWhatsappFilter | null;
+  sort?: string | null;
+  dir?: JobFairSortDir | null;
 };
 
 const YMD = /^\d{4}-\d{2}-\d{2}$/;
@@ -68,6 +127,11 @@ export function parseJobFairPageQuery(
   const limit = (JOB_FAIR_PAGE_SIZES as readonly number[]).includes(limitRaw)
     ? limitRaw
     : 10;
+  const sort = normalizeJobFairSort(
+    view,
+    firstParam(params, 'sort'),
+    firstParam(params, 'dir'),
+  );
 
   return {
     view,
@@ -82,7 +146,53 @@ export function parseJobFairPageQuery(
     to: YMD.test(toRaw) ? toRaw : '',
     step,
     whatsapp,
+    sort: sort.sort,
+    dir: sort.dir,
   };
+}
+
+export function defaultJobFairSort(view: JobFairPageView): {
+  sort: string;
+  dir: JobFairSortDir;
+} {
+  return view === 'drafts'
+    ? { sort: 'updatedAt', dir: 'desc' }
+    : { sort: 'createdAt', dir: 'desc' };
+}
+
+export function normalizeJobFairSort(
+  view: 'registrations',
+  sort: string | null | undefined,
+  dir: string | null | undefined,
+): { sort: JobFairRegistrationSort; dir: JobFairSortDir };
+export function normalizeJobFairSort(
+  view: 'drafts',
+  sort: string | null | undefined,
+  dir: string | null | undefined,
+): { sort: JobFairDraftSort; dir: JobFairSortDir };
+export function normalizeJobFairSort(
+  view: JobFairPageView,
+  sort: string | null | undefined,
+  dir: string | null | undefined,
+): { sort: string; dir: JobFairSortDir };
+export function normalizeJobFairSort(
+  view: JobFairPageView,
+  sort: string | null | undefined,
+  dir: string | null | undefined,
+): { sort: string; dir: JobFairSortDir } {
+  const fallback = defaultJobFairSort(view);
+  const allowed: readonly string[] =
+    view === 'drafts' ? DRAFT_SORT_COLUMNS : REGISTRATION_SORT_COLUMNS;
+  if (!sort || !allowed.includes(sort)) return fallback;
+  return { sort, dir: dir === 'asc' ? 'asc' : 'desc' };
+}
+
+function resolvedView(
+  params: URLSearchParams,
+  patch: JobFairQueryPatch,
+): JobFairPageView {
+  if (patch.view === 'drafts' || patch.view === 'registrations') return patch.view;
+  return parseJobFairPageQuery(Object.fromEntries(params.entries())).view;
 }
 
 function writeParam(
@@ -112,6 +222,22 @@ export function applyJobFairQueryPatch(
   writeParam(next, 'to', patch.to);
   writeParam(next, 'step', patch.step);
   writeParam(next, 'whatsapp', patch.whatsapp);
+
+  if (patch.sort !== undefined || patch.dir !== undefined) {
+    const view = resolvedView(next, patch);
+    const defaults = defaultJobFairSort(view);
+    const current = normalizeJobFairSort(view, next.get('sort'), next.get('dir'));
+    const sort = patch.sort === undefined ? current.sort : patch.sort;
+    const dir = patch.dir === undefined ? current.dir : patch.dir;
+    const normalized = normalizeJobFairSort(view, sort, dir);
+    if (normalized.sort === defaults.sort && normalized.dir === defaults.dir) {
+      next.delete('sort');
+      next.delete('dir');
+    } else {
+      next.set('sort', normalized.sort);
+      next.set('dir', normalized.dir);
+    }
+  }
 
   if (options?.resetPage) next.delete('page');
   else if (patch.page !== undefined) {
@@ -148,5 +274,13 @@ export function jobFairRegistrationExportQuery(query: JobFairPageQuery): string 
   if (query.jobType) params.set('jobType', query.jobType);
   if (query.from) params.set('from', query.from);
   if (query.to) params.set('to', query.to);
+  const defaults = defaultJobFairSort('registrations');
+  if (
+    query.view === 'registrations' &&
+    (query.sort !== defaults.sort || query.dir !== defaults.dir)
+  ) {
+    params.set('sort', query.sort);
+    params.set('dir', query.dir);
+  }
   return params.toString();
 }

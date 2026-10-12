@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Check, Loader2, ScrollText, Search, X } from 'lucide-react';
 
 import { PhoneCallButton } from '@/components/hierarchy/contact-with-call';
+import { JobFairSortBar, SortableColumnHead } from '@/components/job-fair/sort-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -52,6 +53,10 @@ import {
   QUALIFICATION_OPTIONS,
   optionLabel,
 } from '@/lib/job-fair/options';
+import {
+  DRAFT_SORT_OPTIONS,
+  type JobFairSortDir,
+} from '@/lib/job-fair/page-query';
 
 const DRAFT_STEP_LABELS = [
   'Personal',
@@ -295,7 +300,12 @@ export function JobFairDraftList({
   to,
   step,
   whatsapp,
+  sort,
+  dir,
   pending,
+  onToggleSort,
+  onSortColumn,
+  onSortDir,
   onSearchCommit,
   onFromChange,
   onToChange,
@@ -315,7 +325,12 @@ export function JobFairDraftList({
   to: string;
   step: number | null;
   whatsapp: 'verified' | 'unverified' | null;
+  sort: string;
+  dir: JobFairSortDir;
   pending: boolean;
+  onToggleSort: (column: string) => void;
+  onSortColumn: (column: string) => void;
+  onSortDir: (dir: JobFairSortDir) => void;
   onSearchCommit: (value: string) => void;
   onFromChange: (value: string) => void;
   onToChange: (value: string) => void;
@@ -509,6 +524,13 @@ export function JobFairDraftList({
       </Card>
 
       <Card className={`min-w-0 ${pending ? 'opacity-60' : ''}`}>
+        <JobFairSortBar
+          options={DRAFT_SORT_OPTIONS}
+          sort={sort}
+          dir={dir}
+          onSort={onSortColumn}
+          onDir={onSortDir}
+        />
         {items.length === 0 ? (
           <div className="p-10 text-center text-sm text-muted-foreground">
             {hasSearch
@@ -521,14 +543,15 @@ export function JobFairDraftList({
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Mobile</TableHead>
-                    <TableHead>Stopped at</TableHead>
-                    <TableHead>WhatsApp</TableHead>
+                    <SortableColumnHead label="Name" column="fullName" sort={sort} dir={dir} onSort={onToggleSort} />
+                    <SortableColumnHead label="Mobile" column="mobile" sort={sort} dir={dir} onSort={onToggleSort} />
+                    <SortableColumnHead label="Stopped at" column="step" sort={sort} dir={dir} onSort={onToggleSort} />
+                    <SortableColumnHead label="WhatsApp" column="whatsapp" sort={sort} dir={dir} onSort={onToggleSort} />
                     <TableHead>Follow-up</TableHead>
-                    <TableHead>Area</TableHead>
-                    <TableHead className="hidden lg:table-cell">Qualification</TableHead>
-                    <TableHead className="hidden lg:table-cell">Last saved</TableHead>
+                    <SortableColumnHead label="Area" column="area" sort={sort} dir={dir} onSort={onToggleSort} />
+                    <SortableColumnHead label="Qualification" column="qualification" sort={sort} dir={dir} onSort={onToggleSort} className="hidden lg:table-cell" />
+                    <SortableColumnHead label="Created at" column="createdAt" sort={sort} dir={dir} onSort={onToggleSort} className="hidden lg:table-cell" />
+                    <SortableColumnHead label="Last saved" column="updatedAt" sort={sort} dir={dir} onSort={onToggleSort} className="hidden lg:table-cell" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -577,6 +600,9 @@ export function JobFairDraftList({
                           : '—'}
                       </TableCell>
                       <TableCell className="hidden whitespace-nowrap lg:table-cell">
+                        {item.createdAt ? formatDisplayDateTimeIST(item.createdAt) : '—'}
+                      </TableCell>
+                      <TableCell className="hidden whitespace-nowrap lg:table-cell">
                         {item.updatedAt ? formatDisplayDateTimeIST(item.updatedAt) : '—'}
                       </TableCell>
                     </TableRow>
@@ -607,7 +633,12 @@ export function JobFairDraftList({
                         ) : null}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {item.updatedAt ? formatDisplayDateTimeIST(item.updatedAt) : '—'}
+                        {item.createdAt
+                          ? `Created ${formatDisplayDateTimeIST(item.createdAt)}`
+                          : 'Created —'}
+                        {item.updatedAt
+                          ? ` · Saved ${formatDisplayDateTimeIST(item.updatedAt)}`
+                          : ''}
                       </div>
                     </button>
                     <PhoneCallButton phone={`+91${item.mobile}`} className="h-10" />
@@ -649,6 +680,9 @@ export function JobFairDraftList({
                 <DialogDescription>
                   Incomplete draft · Stopped at {stepLabel(selected.step)} (step{' '}
                   {selected.step + 1} of {DRAFT_STEP_LABELS.length})
+                  {selected.createdAt
+                    ? ` · Created ${formatDisplayDateTimeIST(selected.createdAt)}`
+                    : ''}
                   {selected.updatedAt
                     ? ` · Last saved ${formatDisplayDateTimeIST(selected.updatedAt)}`
                     : ''}

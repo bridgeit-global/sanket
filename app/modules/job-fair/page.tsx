@@ -12,7 +12,19 @@ import {
 import { hasModuleAccess } from '@/lib/db/queries';
 import { getTodayDateStringIST } from '@/lib/ist-date';
 import { JOB_FAIR_MODULE_KEY } from '@/lib/job-fair/options';
-import { parseJobFairPageQuery, type JobFairPageQuery } from '@/lib/job-fair/page-query';
+import {
+  normalizeJobFairSort,
+  parseJobFairPageQuery,
+  type JobFairPageQuery,
+} from '@/lib/job-fair/page-query';
+
+function normalizeRegistrationSort(query: JobFairPageQuery) {
+  return normalizeJobFairSort('registrations', query.sort, query.dir).sort;
+}
+
+function normalizeDraftSort(query: JobFairPageQuery) {
+  return normalizeJobFairSort('drafts', query.sort, query.dir).sort;
+}
 
 export default async function JobFairPage({
   searchParams,
@@ -66,6 +78,8 @@ async function loadJobFairList(query: JobFairPageQuery): Promise<{
         to: query.to || undefined,
         step: query.step ?? undefined,
         whatsapp: query.whatsapp ?? undefined,
+        sort: normalizeDraftSort(query),
+        dir: query.dir,
       }),
     ]);
     return {
@@ -90,6 +104,7 @@ async function loadJobFairList(query: JobFairPageQuery): Promise<{
       },
       query.page,
       query.limit,
+      { column: normalizeRegistrationSort(query), dir: query.dir },
     ),
   ]);
   return {

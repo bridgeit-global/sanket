@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from 'next/server';
 
 import { listAllJobFairRegistrations } from '@/lib/db/job-fair-queries';
 import { parseJobFairFilters, requireJobFairAccess } from '@/lib/job-fair/access';
+import { normalizeJobFairSort } from '@/lib/job-fair/page-query';
 import { formatDisplayDateTimeIST, getTodayDateStringIST } from '@/lib/ist-date';
 import {
   AREA_OPTIONS,
@@ -50,7 +51,15 @@ export async function GET(request: NextRequest) {
     if (error || !session) return error;
 
     const { searchParams } = new URL(request.url);
-    const rows = await listAllJobFairRegistrations(parseJobFairFilters(searchParams));
+    const sort = normalizeJobFairSort(
+      'registrations',
+      searchParams.get('sort'),
+      searchParams.get('dir'),
+    );
+    const rows = await listAllJobFairRegistrations(parseJobFairFilters(searchParams), {
+      column: sort.sort,
+      dir: sort.dir,
+    });
 
     const lines = [HEADERS.join(',')];
     for (const r of rows) {

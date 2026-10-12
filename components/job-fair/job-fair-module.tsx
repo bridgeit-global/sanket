@@ -20,6 +20,7 @@ import {
 
 import { JobFairCheckIn } from '@/components/job-fair/job-fair-check-in';
 import { JobFairDraftList } from '@/components/job-fair/job-fair-draft-list';
+import { JobFairSortBar, SortableColumnHead } from '@/components/job-fair/sort-header';
 import { PhoneCallButton } from '@/components/hierarchy/contact-with-call';
 import { FilePreviewDialog } from '@/components/file-preview-dialog';
 import { ModulePageHeader } from '@/components/module-page-header';
@@ -77,9 +78,14 @@ import type {
 import {
   applyJobFairQueryPatch,
   CLEARED_JOB_FAIR_FILTERS,
+  defaultJobFairSort,
   jobFairRegistrationExportQuery,
+  normalizeJobFairSort,
+  REGISTRATION_SORT_OPTIONS,
   type JobFairPageQuery,
+  type JobFairPageView,
   type JobFairQueryPatch,
+  type JobFairSortDir,
 } from '@/lib/job-fair/page-query';
 
 const ALL = 'all';
@@ -256,6 +262,25 @@ export function JobFairModule({
     commit(CLEARED_JOB_FAIR_FILTERS, true);
   };
 
+  const changeView = (nextView: JobFairPageView) => {
+    const next = normalizeJobFairSort(nextView, query.sort, query.dir);
+    const defaults = defaultJobFairSort(nextView);
+    commit(
+      {
+        view: nextView,
+        sort: next.sort === defaults.sort && next.dir === defaults.dir ? null : next.sort,
+        dir: next.sort === defaults.sort && next.dir === defaults.dir ? null : next.dir,
+      },
+      true,
+    );
+  };
+
+  const toggleSort = (column: string) => {
+    const dir: JobFairSortDir =
+      query.sort === column && query.dir === 'asc' ? 'desc' : 'asc';
+    commit({ sort: column, dir }, true);
+  };
+
   const copyPublicLink = async () => {
     const url = JOB_FAIR_PUBLIC_PATH
     try {
@@ -332,7 +357,7 @@ export function JobFairModule({
           label="Total registrations"
           value={stats.total}
           active={view === 'registrations'}
-          onClick={() => commit({ view: 'registrations' }, true)}
+          onClick={() => changeView('registrations')}
         />
         <StatCard icon={CalendarCheck} label="Checked in" value={stats.checkedIn} />
         <StatCard icon={UserCheck} label="Registered today" value={stats.today} />
@@ -342,7 +367,7 @@ export function JobFairModule({
           label="Incomplete drafts"
           value={stats.openDrafts}
           active={view === 'drafts'}
-          onClick={() => commit({ view: 'drafts' }, true)}
+          onClick={() => changeView('drafts')}
         />
         <StatCard
           icon={MapPin}
@@ -364,9 +389,7 @@ export function JobFairModule({
 
       <Tabs
         value={view}
-        onValueChange={(next) =>
-          commit({ view: next === 'drafts' ? 'drafts' : 'registrations' }, true)
-        }
+        onValueChange={(next) => changeView(next === 'drafts' ? 'drafts' : 'registrations')}
       >
         <TabsList className="h-10 w-full sm:w-auto">
           <TabsTrigger value="registrations" className="flex-1 sm:flex-none">
@@ -389,7 +412,14 @@ export function JobFairModule({
           to={query.to}
           step={query.step}
           whatsapp={query.whatsapp}
+          sort={query.sort}
+          dir={query.dir}
           pending={pending}
+          onToggleSort={toggleSort}
+          onSortColumn={(column) =>
+            commit({ sort: column, dir: query.sort === column ? query.dir : 'asc' }, true)
+          }
+          onSortDir={(dir) => commit({ dir }, true)}
           onSearchCommit={(value) => commit({ search: value || null }, true)}
           onFromChange={(value) => commit({ from: value || null }, true)}
           onToChange={(value) => commit({ to: value || null }, true)}
@@ -445,6 +475,15 @@ export function JobFairModule({
           </Card>
 
           <Card className={`min-w-0 ${pending ? 'opacity-60' : ''}`}>
+            <JobFairSortBar
+              options={REGISTRATION_SORT_OPTIONS}
+              sort={query.sort}
+              dir={query.dir}
+              onSort={(column) =>
+                commit({ sort: column, dir: query.sort === column ? query.dir : 'asc' }, true)
+              }
+              onDir={(dir) => commit({ dir }, true)}
+            />
             {items.length === 0 ? (
               <div className="p-10 text-center text-sm text-muted-foreground">
                 {hasFilters ? 'No registrations match these filters.' : 'No registrations yet. Share the public link to get started.'}
@@ -455,14 +494,14 @@ export function JobFairModule({
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Reg. No</TableHead>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Mobile</TableHead>
-                        <TableHead>Area</TableHead>
-                        <TableHead>Qualification</TableHead>
-                        <TableHead className="hidden lg:table-cell">Experience</TableHead>
-                        <TableHead className="hidden lg:table-cell">Registered</TableHead>
+                        <SortableColumnHead label="Reg. No" column="registrationNo" sort={query.sort} dir={query.dir} onSort={toggleSort} />
+                        <SortableColumnHead label="Name" column="fullName" sort={query.sort} dir={query.dir} onSort={toggleSort} />
+                        <SortableColumnHead label="Status" column="status" sort={query.sort} dir={query.dir} onSort={toggleSort} />
+                        <SortableColumnHead label="Mobile" column="mobile" sort={query.sort} dir={query.dir} onSort={toggleSort} />
+                        <SortableColumnHead label="Area" column="area" sort={query.sort} dir={query.dir} onSort={toggleSort} />
+                        <SortableColumnHead label="Qualification" column="qualification" sort={query.sort} dir={query.dir} onSort={toggleSort} />
+                        <SortableColumnHead label="Experience" column="experience" sort={query.sort} dir={query.dir} onSort={toggleSort} className="hidden lg:table-cell" />
+                        <SortableColumnHead label="Registered" column="createdAt" sort={query.sort} dir={query.dir} onSort={toggleSort} className="hidden lg:table-cell" />
                         <TableHead className="text-right">Resume</TableHead>
                       </TableRow>
                     </TableHeader>
