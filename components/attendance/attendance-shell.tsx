@@ -85,10 +85,21 @@ export function AttendanceShell({ children, title = 'Attendance' }: { children: 
   const [hash, setHash] = useLocationHash();
   const isAdminArea = pathname.startsWith('/admin/');
   const links = isAdminArea ? adminTabs : staffTabs;
+  const fitScreen = pathname === '/scan';
 
   return (
-    <div className="flex min-h-dvh flex-col bg-background text-foreground">
-      <header className="sticky top-0 z-20 border-b bg-background/90 px-4 py-3 backdrop-blur sm:px-6">
+    <div
+      className={cn(
+        'flex flex-col bg-background text-foreground',
+        fitScreen ? 'h-[calc(100svh-1rem)] max-h-[calc(100svh-1rem)] overflow-hidden' : 'min-h-dvh',
+      )}
+    >
+      <header
+        className={cn(
+          'z-20 border-b bg-background/90 px-4 backdrop-blur sm:px-6',
+          fitScreen ? 'shrink-0 py-2' : 'sticky top-0 py-3',
+        )}
+      >
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2">
             <SidebarToggle />
@@ -100,8 +111,20 @@ export function AttendanceShell({ children, title = 'Attendance' }: { children: 
           <Link href="/" className="shrink-0 text-sm text-muted-foreground">eOffice</Link>
         </div>
       </header>
-      <main className="mx-auto w-full min-w-0 max-w-5xl flex-1 px-4 py-5 sm:px-6">{children}</main>
-      <nav className="sticky bottom-0 z-30 border-t bg-background/95 px-2 pb-[env(safe-area-inset-bottom)] backdrop-blur">
+      <main
+        className={cn(
+          'mx-auto w-full min-w-0 max-w-5xl px-4 sm:px-6',
+          fitScreen ? 'flex min-h-0 flex-1 flex-col overflow-hidden py-3' : 'flex-1 py-5',
+        )}
+      >
+        {children}
+      </main>
+      <nav
+        className={cn(
+          'z-30 border-t bg-background/95 px-2 pb-[env(safe-area-inset-bottom)] backdrop-blur',
+          fitScreen ? 'shrink-0' : 'sticky bottom-0',
+        )}
+      >
         <div className={cn('mx-auto grid max-w-5xl gap-1 py-2', links.length === 3 ? 'grid-cols-3' : 'grid-cols-4')}>
           {links.map(({ href, label, icon: Icon, isActive }) => {
             const active = isActive(pathname, hash);

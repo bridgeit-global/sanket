@@ -243,105 +243,106 @@ export function AttendanceScanner({
 
   return (
     <AttendanceShell>
-      <div className="mx-auto flex w-full max-w-lg flex-col gap-4">
-        <div className="min-w-0">
-          <p className="text-sm text-muted-foreground">Secure attendance</p>
-          <h1 className="text-2xl font-bold">
-            {method === 'field' ? 'Mark present by location' : 'Scan to mark present'}
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {method === 'field'
-              ? 'Use this when you work in the field and do not come to the office. Your current location is saved with the attendance mark.'
-              : 'Camera and GPS stay on only while this screen is open.'}
-          </p>
+      <div data-layout="fit" className="mx-auto grid min-h-0 w-full max-w-5xl flex-1 grid-rows-[minmax(0,1fr)_auto] gap-2 sm:grid-cols-[minmax(0,1.4fr)_minmax(16rem,22rem)] sm:grid-rows-1 sm:gap-4">
+        <div className="flex min-h-0 flex-col gap-2 sm:col-start-1 sm:row-start-1">
+          <div className="shrink-0 min-w-0">
+            <p className="text-xs text-muted-foreground sm:text-sm">Secure attendance</p>
+            <h1 className="text-lg font-bold leading-tight sm:text-2xl">
+              {method === 'field' ? 'Mark present by location' : 'Scan to mark present'}
+            </h1>
+            <p className="mt-0.5 text-xs text-muted-foreground sm:mt-1 sm:text-sm">
+              {method === 'field'
+                ? 'Use this when you work in the field and do not come to the office. Your current location is saved with the attendance mark.'
+                : 'Camera and GPS stay on only while this screen is open.'}
+            </p>
+          </div>
+          <div className="grid shrink-0 grid-cols-2 rounded-xl bg-muted p-1">
+            {(['qr', 'field'] as const).map((value) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => {
+                  setMethod(value);
+                  setSuccess(null);
+                  setMessage(value === 'field' ? 'Allow location to mark your field attendance.' : 'Point your camera at the site QR code.');
+                }}
+                className={`min-h-10 rounded-lg px-2 text-sm font-medium ${method === value ? 'bg-background shadow' : 'text-muted-foreground'}`}
+              >
+                {value === 'qr' ? 'Office QR' : 'Field location'}
+              </button>
+            ))}
+          </div>
+          {method === 'field' ? (
+            <Card className="shrink-0">
+              <CardContent className="flex items-start gap-3 p-3 sm:p-4">
+                <LocateFixed className="mt-0.5 size-5 shrink-0 text-primary" />
+                <div className="min-w-0">
+                  <p className="font-medium">Current location</p>
+                  <p className="text-sm text-muted-foreground">{gpsLabel}. No site or QR code is required.</p>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="flex min-h-24 flex-1 flex-col overflow-hidden">
+              <CardContent className="relative min-h-0 flex-1 p-0">
+                <div className="absolute inset-0 overflow-hidden bg-black">
+                  <video ref={videoRef} className="size-full object-cover" muted autoPlay playsInline />
+                  <div className="pointer-events-none absolute inset-3 rounded-2xl border-2 border-white/80 shadow-[0_0_0_9999px_rgba(0,0,0,0.45)] sm:inset-8" />
+                  <ScanLine className="pointer-events-none absolute right-3 top-3 size-6 text-primary sm:right-6 sm:top-6 sm:size-7" />
+                  <div className="absolute bottom-2 left-2 right-2 grid grid-cols-3 gap-1 rounded-lg bg-black/60 px-1.5 py-1.5 text-[10px] leading-tight text-white sm:bottom-3 sm:left-3 sm:right-3 sm:px-3 sm:py-2 sm:text-xs">
+                    <span className="flex min-w-0 items-center justify-center gap-1 text-center"><LocateFixed className="size-3 shrink-0" /><span className="break-words">{gpsLabel}</span></span>
+                    <span className="flex min-w-0 items-center justify-center gap-1 text-center"><Camera className="size-3 shrink-0" /><span className="break-words">{cameraLabel}</span></span>
+                    <span className="flex min-w-0 items-center justify-center gap-1 text-center"><Radio className="size-3 shrink-0" /><span className="break-words">{ip ? 'Network detected' : 'Network unknown'}</span></span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
-        <div className="grid grid-cols-2 rounded-xl bg-muted p-1">
-          {(['qr', 'field'] as const).map((value) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => {
-                setMethod(value);
-                setSuccess(null);
-                setMessage(value === 'field' ? 'Allow location to mark your field attendance.' : 'Point your camera at the site QR code.');
-              }}
-              className={`min-h-12 rounded-lg px-2 text-sm font-medium ${method === value ? 'bg-background shadow' : 'text-muted-foreground'}`}
-            >
-              {value === 'qr' ? 'Office QR' : 'Field location'}
-            </button>
-          ))}
-        </div>
-        {method === 'field' ? (
-          <Card>
-            <CardContent className="flex items-start gap-3 p-4">
-              <LocateFixed className="mt-0.5 size-5 shrink-0 text-primary" />
-              <div className="min-w-0">
-                <p className="font-medium">Current location</p>
-                <p className="text-sm text-muted-foreground">{gpsLabel}. No site or QR code is required.</p>
-              </div>
-            </CardContent>
-          </Card>
-        ) : null}
-        {method === 'qr' ? (
-        <Card className="overflow-hidden">
-          <CardContent className="p-0">
-            <div className="relative h-[min(58dvh,28rem)] w-full overflow-hidden bg-black sm:aspect-square sm:h-auto">
-              <video ref={videoRef} className="size-full object-cover" muted autoPlay playsInline />
-              <div className="pointer-events-none absolute inset-8 rounded-3xl border-2 border-white/80 shadow-[0_0_0_9999px_rgba(0,0,0,0.45)] sm:inset-12" />
-              <ScanLine className="pointer-events-none absolute right-5 top-5 size-7 text-primary sm:right-8 sm:top-8" />
-              <div className="absolute bottom-3 left-3 right-3 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-black/60 px-3 py-2 text-xs text-white">
-                <span className="flex items-center gap-1"><LocateFixed className="size-3 shrink-0" />{gpsLabel}</span>
-                <span className="flex items-center gap-1"><Camera className="size-3 shrink-0" />{cameraLabel}</span>
-                <span className="flex items-center gap-1"><Radio className="size-3 shrink-0" />{ip ? 'Network detected' : 'Network unknown'}</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        ) : null}
-        <div className="space-y-3">
+        <div className="flex min-h-0 flex-col justify-end gap-2 sm:col-start-2 sm:row-start-1 sm:justify-center">
           {method === 'qr' ? (
-          <>
-          <label className="block text-sm font-medium" htmlFor="attendance-token">QR token fallback</label>
-          <input
-            id="attendance-token"
-            value={token}
-            onChange={(event) => setToken(normalizeAttendanceQrToken(event.target.value))}
-            placeholder="10-character code"
-            maxLength={10}
-            autoCapitalize="characters"
-            className="min-h-12 w-full rounded-lg border bg-background px-3 font-mono text-base uppercase tracking-[0.3em]"
-          />
-          </>
+            <>
+              <label className="block text-sm font-medium" htmlFor="attendance-token">QR token fallback</label>
+              <input
+                id="attendance-token"
+                value={token}
+                onChange={(event) => setToken(normalizeAttendanceQrToken(event.target.value))}
+                placeholder="10-character code"
+                maxLength={10}
+                autoCapitalize="characters"
+                className="h-10 w-full rounded-lg border bg-background px-3 font-mono text-base uppercase tracking-[0.2em] sm:h-12 sm:tracking-[0.3em]"
+              />
+            </>
           ) : (
             <p className="flex items-center gap-2 text-sm text-muted-foreground">
               <LocateFixed className="size-4 shrink-0" />
               {gpsLabel}
             </p>
           )}
-          <Button onClick={submit} disabled={busy} className="min-h-12 w-full">
+          <Button onClick={submit} disabled={busy} className="h-10 w-full sm:h-12">
             {busy ? 'Verifying…' : method === 'field'
               ? 'Mark present'
               : <><Camera className="mr-2 size-4" />Mark present</>}
           </Button>
-          <p className="text-center text-sm text-muted-foreground">{message}</p>
+          <p className="text-center text-xs text-muted-foreground sm:text-sm">{message}</p>
           {gpsState === 'denied' ? (
-            <p className="text-center text-sm text-amber-700 dark:text-amber-400">Turn location on for this site, then come back to Scan.</p>
+            <p className="text-center text-xs text-amber-700 dark:text-amber-400 sm:text-sm">Turn location on for this site, then come back to Scan.</p>
+          ) : null}
+          {success ? (
+            <Card className="border-emerald-500/40 bg-emerald-500/5">
+              <CardContent className="flex items-start gap-3 p-3 sm:p-4">
+                <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-emerald-500" />
+                <div className="min-w-0">
+                  <p className="font-semibold">Attendance confirmed</p>
+                  <p className="break-words text-sm text-muted-foreground">
+                    {method === 'field' ? 'Field location' : (success.site?.name || 'Verified site')}
+                    {confirmedAt ? ` · ${formatDisplayDateTimeIST(confirmedAt)}` : ''}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
           ) : null}
         </div>
-        {success ? (
-          <Card className="border-emerald-500/40 bg-emerald-500/5">
-            <CardContent className="flex items-start gap-3 p-4">
-              <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-emerald-500" />
-              <div className="min-w-0">
-                <p className="font-semibold">Attendance confirmed</p>
-                <p className="break-words text-sm text-muted-foreground">
-                  {method === 'field' ? 'Field location' : (success.site?.name || 'Verified site')}
-                  {confirmedAt ? ` · ${formatDisplayDateTimeIST(confirmedAt)}` : ''}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        ) : null}
       </div>
     </AttendanceShell>
   );
