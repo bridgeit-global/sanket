@@ -46,19 +46,12 @@ function releaseCamera(video: HTMLVideoElement | null, controls: ScannerControls
 }
 
 export function AttendanceScanner({
-  initialMode = 'clock_in',
   initialMethod = 'qr',
 }: {
-  initialMode?: 'clock_in' | 'clock_out';
   initialMethod?: 'qr' | 'field';
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [mode, setMode] = useState<'clock_in' | 'clock_out'>(initialMode);
   const [method, setMethod] = useState<'qr' | 'field'>(initialMethod);
-
-  useEffect(() => {
-    setMode(initialMode);
-  }, [initialMode]);
 
   useEffect(() => {
     setMethod(initialMethod);
@@ -70,7 +63,7 @@ export function AttendanceScanner({
   const [ip, setIp] = useState<string | null>(null);
   const [message, setMessage] = useState(initialMethod === 'field' ? 'Allow location to mark your field attendance.' : 'Point your camera at the site QR code.');
   const [busy, setBusy] = useState(false);
-  const [success, setSuccess] = useState<{ site?: { name?: string }; clock_in?: string; clock_out?: string } | null>(null);
+  const [success, setSuccess] = useState<{ site?: { name?: string }; clock_in?: string } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -222,8 +215,8 @@ export function AttendanceScanner({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(method === 'field'
-          ? { locationOnly: true, mode, latitude: location.lat, longitude: location.lng }
-          : { token, mode, latitude: location.lat, longitude: location.lng }),
+          ? { locationOnly: true, mode: 'clock_in', latitude: location.lat, longitude: location.lng }
+          : { token, mode: 'clock_in', latitude: location.lat, longitude: location.lng }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Attendance could not be recorded.');
@@ -238,7 +231,7 @@ export function AttendanceScanner({
     }
   };
 
-  const confirmedAt = success?.clock_in || success?.clock_out;
+  const confirmedAt = success?.clock_in;
   const gpsLabel = gpsState === 'ready' && location
     ? `±${Math.round(location.accuracy)}m`
     : gpsState === 'denied'
@@ -254,9 +247,7 @@ export function AttendanceScanner({
         <div className="min-w-0">
           <p className="text-sm text-muted-foreground">Secure attendance</p>
           <h1 className="text-2xl font-bold">
-            {method === 'field'
-              ? (mode === 'clock_in' ? 'Check in by location' : 'Check out by location')
-              : `Scan to ${mode === 'clock_in' ? 'clock in' : 'clock out'}`}
+            {method === 'field' ? 'Mark present by location' : 'Scan to mark present'}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {method === 'field'
@@ -277,18 +268,6 @@ export function AttendanceScanner({
               className={`min-h-12 rounded-lg px-2 text-sm font-medium ${method === value ? 'bg-background shadow' : 'text-muted-foreground'}`}
             >
               {value === 'qr' ? 'Office QR' : 'Field location'}
-            </button>
-          ))}
-        </div>
-        <div className="grid grid-cols-2 rounded-xl bg-muted p-1">
-          {(['clock_in', 'clock_out'] as const).map((value) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setMode(value)}
-              className={`min-h-12 rounded-lg text-sm font-medium ${mode === value ? 'bg-background shadow' : 'text-muted-foreground'}`}
-            >
-              {value === 'clock_in' ? 'Clock in' : 'Clock out'}
             </button>
           ))}
         </div>
@@ -341,8 +320,8 @@ export function AttendanceScanner({
           )}
           <Button onClick={submit} disabled={busy} className="min-h-12 w-full">
             {busy ? 'Verifying…' : method === 'field'
-              ? (mode === 'clock_in' ? 'Check in' : 'Check out')
-              : <><Camera className="mr-2 size-4" />Verify attendance</>}
+              ? 'Mark present'
+              : <><Camera className="mr-2 size-4" />Mark present</>}
           </Button>
           <p className="text-center text-sm text-muted-foreground">{message}</p>
           {gpsState === 'denied' ? (

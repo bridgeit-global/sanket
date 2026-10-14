@@ -6,7 +6,7 @@ import { CalendarDays, ChevronLeft, ChevronRight, Clock3, MapPin, Plus, RefreshC
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { TablePagination, usePagination } from '@/components/table-pagination';
-import { formatDisplayDateIST, formatDisplayDateTimeIST, formatDisplayTimeIST, formatYmd, getCalendarYmd, getTodayDateStringIST, parseInstant } from '@/lib/ist-date';
+import { formatDisplayDateIST, formatDisplayDateTimeIST, formatDisplayTimeIST, formatYmd, getCalendarYmd, getTodayDateStringIST } from '@/lib/ist-date';
 import { cn } from '@/lib/utils';
 import { AttendanceShell, SectionTitle } from './attendance-shell';
 import type { AttendanceLog, LeaveRequest, LeaveStatus } from '@/lib/attendance/types';
@@ -63,17 +63,11 @@ export function AttendanceDashboard({ initialData }: { initialData: any }) {
   const [leaveOpen, setLeaveOpen] = useState(false);
   const [leave, setLeave] = useState({ start_date: '', end_date: '', reason: '' });
   const [leaveMessage, setLeaveMessage] = useState('');
-  const [now, setNow] = useState(Date.now());
   const [visibleMonth, setVisibleMonth] = useState(() => {
     const todayYmd = getCalendarYmd();
     return { year: todayYmd.year, month: todayYmd.month };
   });
   const [selectedDate, setSelectedDate] = useState(() => getTodayDateStringIST());
-
-  useEffect(() => {
-    const id = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(id);
-  }, []);
 
   useEffect(() => {
     const scrollToHash = () => {
@@ -86,17 +80,10 @@ export function AttendanceDashboard({ initialData }: { initialData: any }) {
     return () => window.removeEventListener('hashchange', scrollToHash);
   }, []);
 
-  const today = getTodayDateStringIST(new Date(now));
+  const today = getTodayDateStringIST();
   const logs = (data.logs ?? []) as AttendanceLog[];
   const todayLogs = useMemo(() => logs.filter((log) => log.date === today), [logs, today]);
   const todayLog = todayLogs[0];
-  const officeLog = todayLogs.find((log) => log.site_id);
-  const locationLog = todayLogs.find((log) => !log.site_id);
-  const officeOpen = Boolean(officeLog?.clock_in && !officeLog.clock_out);
-  const locationOpen = Boolean(locationLog?.clock_in && !locationLog.clock_out);
-  const elapsed = todayLog?.clock_in ? Math.max(0, now - parseInstant(todayLog.clock_in).getTime()) : 0;
-  const hours = Math.floor(elapsed / 3_600_000);
-  const minutes = Math.floor((elapsed % 3_600_000) / 60_000);
   const logsByDate = useMemo(() => {
     const map = new Map<string, AttendanceLog[]>();
     for (const log of logs) {
@@ -165,8 +152,8 @@ export function AttendanceDashboard({ initialData }: { initialData: any }) {
             <CardContent>
               <div className="flex items-end justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="text-3xl font-bold">{todayLog?.clock_in ? `${hours}h ${minutes}m` : 'Not started'}</div>
-                  <p className="mt-1 text-sm text-muted-foreground">{todayLog?.clock_out ? 'Shift completed' : todayLog?.clock_in ? 'Currently active' : 'Scan to clock in'}</p>
+                  <div className="text-3xl font-bold">{todayLog?.clock_in ? 'Present' : 'Not marked'}</div>
+                  <p className="mt-1 text-sm text-muted-foreground">{todayLog?.clock_in ? `Present at ${formatDisplayTimeIST(todayLog.clock_in)}` : 'Scan to mark present'}</p>
                 </div>
                 <Clock3 className="size-8 shrink-0 text-primary" />
               </div>
@@ -176,16 +163,16 @@ export function AttendanceDashboard({ initialData }: { initialData: any }) {
             <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Quick action</CardTitle></CardHeader>
             <CardContent>
               <div className="flex flex-col gap-3">
-                <Link href={officeOpen ? '/scan?mode=clock_out' : '/scan'} className="block">
+                <Link href="/scan" className="block">
                   <Button className="min-h-12 w-full">
                     <MapPin className="mr-2 size-4" />
-                    {officeOpen ? 'Clock out at office' : 'Scan office QR'}
+                    Scan office QR
                   </Button>
                 </Link>
-                <Link href={locationOpen ? '/scan?method=field&mode=clock_out' : '/scan?method=field'} className="block">
+                <Link href="/scan?method=field" className="block">
                   <Button variant="outline" className="min-h-12 w-full">
                     <MapPin className="mr-2 size-4" />
-                    {locationOpen ? 'Check out by location' : 'Check in by location'}
+                    Mark present by location
                   </Button>
                 </Link>
               </div>
@@ -197,14 +184,10 @@ export function AttendanceDashboard({ initialData }: { initialData: any }) {
           <CardHeader><SectionTitle icon={Clock3}>Today&apos;s timeline</SectionTitle></CardHeader>
           <CardContent>
             {todayLog ? (
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                 <div>
-                  <p className="text-xs text-muted-foreground">Clock in</p>
+                  <p className="text-xs text-muted-foreground">Present</p>
                   <p className="font-medium">{todayLog.clock_in ? formatDisplayTimeIST(todayLog.clock_in) : '—'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Clock out</p>
-                  <p className="font-medium">{todayLog.clock_out ? formatDisplayTimeIST(todayLog.clock_out) : 'Active'}</p>
                 </div>
                 <div className="min-w-0">
                   <p className="text-xs text-muted-foreground">Location</p>
@@ -302,9 +285,7 @@ export function AttendanceDashboard({ initialData }: { initialData: any }) {
                     <div key={log.id} className="min-w-0 text-sm">
                       <p className="break-words">{log.site?.name || 'Field location'} · {log.status.replaceAll('_', ' ')}</p>
                       <p className="text-muted-foreground">
-                        {log.clock_in ? formatDisplayTimeIST(log.clock_in) : '—'}
-                        {' – '}
-                        {log.clock_out ? formatDisplayTimeIST(log.clock_out) : 'Open'}
+                        {log.clock_in ? `Present · ${formatDisplayTimeIST(log.clock_in)}` : '—'}
                       </p>
                     </div>
                   ))}
@@ -426,7 +407,6 @@ export function AttendanceDashboard({ initialData }: { initialData: any }) {
           <Card>
             <CardHeader><SectionTitle icon={MapPin}>Administration</SectionTitle></CardHeader>
             <CardContent className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-              <Link href="/admin/qr-generator" className="block w-full sm:w-auto"><Button variant="outline" className="min-h-12 w-full">QR generator</Button></Link>
               <Link href="/admin/live-ops" className="block w-full sm:w-auto"><Button variant="outline" className="min-h-12 w-full">Live operations</Button></Link>
               <Link href="/admin/audit-logs" className="block w-full sm:w-auto"><Button variant="outline" className="min-h-12 w-full">Audit ledger</Button></Link>
               <Link href="/admin/leave" className="block w-full sm:w-auto"><Button variant="outline" className="min-h-12 w-full">Leave requests</Button></Link>

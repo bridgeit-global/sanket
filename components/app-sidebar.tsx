@@ -53,7 +53,6 @@ const adminAttendanceLinks: AttendanceNavLink[] = [
     icon: ShieldCheck,
     isActive: (path) =>
       path.startsWith('/admin/live-ops') ||
-      path.startsWith('/admin/qr-generator') ||
       path.startsWith('/admin/audit-logs') ||
       path.startsWith('/admin/leave'),
   }

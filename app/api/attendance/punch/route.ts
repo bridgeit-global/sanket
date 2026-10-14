@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const token = normalizeAttendanceQrToken(String(body.token || ''));
     const locationOnly = body.locationOnly === true;
-    const mode = body.mode === 'clock_out' ? 'clock_out' : 'clock_in';
+    const mode = 'clock_in' as const;
     const latitude = Number(body.latitude);
     const longitude = Number(body.longitude);
     if ((!locationOnly && !isAttendanceQrToken(token)) || !Number.isFinite(latitude) || !Number.isFinite(longitude)) {

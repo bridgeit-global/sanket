@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { Activity, CalendarDays, ClipboardList, MapPin, QrCode, ScanLine, Settings, ShieldCheck } from 'lucide-react';
+import { Activity, CalendarDays, ClipboardList, MapPin, ScanLine, Settings, ShieldCheck } from 'lucide-react';
 import { SidebarToggle } from '@/components/sidebar-toggle';
 import { cn } from '@/lib/utils';
 
@@ -47,12 +47,6 @@ const adminTabs: AttendanceTab[] = [
     label: 'Live ops',
     icon: Activity,
     isActive: (path: string) => path.startsWith('/admin/live-ops'),
-  },
-  {
-    href: '/admin/qr-generator',
-    label: 'QR',
-    icon: QrCode,
-    isActive: (path: string) => path.startsWith('/admin/qr-generator'),
   },
   {
     href: '/admin/audit-logs',
@@ -108,7 +102,7 @@ export function AttendanceShell({ children, title = 'Attendance' }: { children: 
       </header>
       <main className="mx-auto w-full min-w-0 max-w-5xl flex-1 px-4 py-5 sm:px-6">{children}</main>
       <nav className="sticky bottom-0 z-30 border-t bg-background/95 px-2 pb-[env(safe-area-inset-bottom)] backdrop-blur">
-        <div className="mx-auto grid max-w-5xl grid-cols-4 gap-1 py-2">
+        <div className={cn('mx-auto grid max-w-5xl gap-1 py-2', links.length === 3 ? 'grid-cols-3' : 'grid-cols-4')}>
           {links.map(({ href, label, icon: Icon, isActive }) => {
             const active = isActive(pathname, hash);
             return (

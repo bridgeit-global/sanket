@@ -180,7 +180,7 @@ export async function createPunch({
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
-    if (mode === 'clock_in' && existing?.clock_in) throw new Error('You are already checked in for today.');
+    if (mode === 'clock_in' && existing?.clock_in) throw new Error('You are already marked present for today.');
     if (mode === 'clock_out' && (!existing || !existing.clock_in)) throw new Error('Check in before checking out.');
     if (mode === 'clock_out' && existing?.clock_out) throw new Error('You are already checked out for today.');
 
@@ -227,7 +227,7 @@ export async function createPunch({
   }
 
   const { data: existing } = await db.from('AttendanceLog').select('*').eq('user_id', userId).eq('site_id', site.id).eq('date', today).order('created_at', { ascending: false }).limit(1).maybeSingle();
-  if (mode === 'clock_in' && existing?.clock_in) throw new Error('You are already clocked in for today.');
+  if (mode === 'clock_in' && existing?.clock_in) throw new Error('You are already marked present for today.');
   if (mode === 'clock_out' && (!existing || !existing.clock_in)) throw new Error('Clock in before clocking out.');
   if (mode === 'clock_out' && existing?.clock_out) throw new Error('You are already clocked out for today.');
 
