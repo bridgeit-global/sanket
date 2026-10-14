@@ -243,7 +243,7 @@ export function AttendanceScanner({
 
   return (
     <AttendanceShell>
-      <div data-layout="fit" className="mx-auto grid min-h-0 w-full max-w-5xl flex-1 grid-rows-[minmax(0,1fr)_auto] gap-2 sm:grid-cols-[minmax(0,1.4fr)_minmax(16rem,22rem)] sm:grid-rows-1 sm:gap-4">
+      <div className="mx-auto grid min-h-0 w-full max-w-5xl flex-1 grid-rows-[minmax(0,1fr)_auto] gap-2 sm:grid-cols-[minmax(0,1.4fr)_minmax(16rem,22rem)] sm:grid-rows-1 sm:gap-4">
         <div className="flex min-h-0 flex-col gap-2 sm:col-start-1 sm:row-start-1">
           <div className="shrink-0 min-w-0">
             <p className="text-xs text-muted-foreground sm:text-sm">Secure attendance</p>
@@ -284,16 +284,25 @@ export function AttendanceScanner({
             </Card>
           ) : (
             <Card className="flex min-h-24 flex-1 flex-col overflow-hidden">
-              <CardContent className="relative min-h-0 flex-1 p-0">
-                <div className="absolute inset-0 overflow-hidden bg-black">
-                  <video ref={videoRef} className="size-full object-cover" muted autoPlay playsInline />
-                  <div className="pointer-events-none absolute inset-3 rounded-2xl border-2 border-white/80 shadow-[0_0_0_9999px_rgba(0,0,0,0.45)] sm:inset-8" />
-                  <ScanLine className="pointer-events-none absolute right-3 top-3 size-6 text-primary sm:right-6 sm:top-6 sm:size-7" />
-                  <div className="absolute bottom-2 left-2 right-2 grid grid-cols-3 gap-1 rounded-lg bg-black/60 px-1.5 py-1.5 text-[10px] leading-tight text-white sm:bottom-3 sm:left-3 sm:right-3 sm:px-3 sm:py-2 sm:text-xs">
-                    <span className="flex min-w-0 items-center justify-center gap-1 text-center"><LocateFixed className="size-3 shrink-0" /><span className="break-words">{gpsLabel}</span></span>
-                    <span className="flex min-w-0 items-center justify-center gap-1 text-center"><Camera className="size-3 shrink-0" /><span className="break-words">{cameraLabel}</span></span>
-                    <span className="flex min-w-0 items-center justify-center gap-1 text-center"><Radio className="size-3 shrink-0" /><span className="break-words">{ip ? 'Network detected' : 'Network unknown'}</span></span>
-                  </div>
+              <CardContent className="flex min-h-0 flex-1 flex-col p-0">
+                <div className="relative min-h-0 flex-1 overflow-hidden bg-black">
+                  <video ref={videoRef} className="absolute inset-0 size-full object-cover" muted autoPlay playsInline />
+                  <div className="pointer-events-none absolute inset-3 rounded-2xl border-2 border-white/80 shadow-[0_0_0_9999px_rgba(0,0,0,0.45)] sm:inset-6" />
+                  <ScanLine className="pointer-events-none absolute right-4 top-4 size-6 text-primary" />
+                </div>
+                <div className="grid shrink-0 grid-cols-3 divide-x divide-white/15 bg-neutral-950 text-[10px] leading-tight text-white sm:text-xs">
+                  <span className="flex min-w-0 flex-col items-center justify-center gap-0.5 px-1 py-1.5 text-center">
+                    <LocateFixed className="size-3.5 shrink-0" />
+                    <span className="max-w-full">{gpsLabel}</span>
+                  </span>
+                  <span className="flex min-w-0 flex-col items-center justify-center gap-0.5 px-1 py-1.5 text-center">
+                    <Camera className="size-3.5 shrink-0" />
+                    <span className="max-w-full">{cameraLabel}</span>
+                  </span>
+                  <span className="flex min-w-0 flex-col items-center justify-center gap-0.5 px-1 py-1.5 text-center">
+                    <Radio className="size-3.5 shrink-0" />
+                    <span className="max-w-full">{ip ? 'Network detected' : 'Network unknown'}</span>
+                  </span>
                 </div>
               </CardContent>
             </Card>
