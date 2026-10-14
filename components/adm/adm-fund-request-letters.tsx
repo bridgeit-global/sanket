@@ -369,7 +369,7 @@ export function AdmFundRequestLetters({
     return (
       <div className="inline-flex min-h-10 max-w-full items-center gap-1.5 text-sm">
         <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
-        <span className="max-w-[180px] truncate">{fileName}</span>
+        <span className="break-all whitespace-normal">{fileName}</span>
         <FilePreviewButton
           fileUrl={`/api/adm/fund-request-letters/${letter.id}/pdf`}
           fileName={fileName.endsWith('.pdf') ? fileName : `${fileName}.pdf`}
@@ -390,7 +390,7 @@ export function AdmFundRequestLetters({
     return (
       <button
         type="button"
-        className="min-h-10 max-w-[240px] truncate text-left text-sm text-blue-600 hover:underline"
+        className="min-h-10 break-all whitespace-normal text-left text-sm text-blue-600 hover:underline"
         onClick={() => onOpenFund(letter.fundRecordId as string)}
       >
         {label}

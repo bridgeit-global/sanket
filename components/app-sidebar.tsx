@@ -41,7 +41,7 @@ export function AppSidebar({ user, modules }: AppSidebarProps) {
               }}
               className="flex min-w-0 flex-row gap-3 items-center"
             >
-              <span className="text-lg font-semibold px-2 hover:bg-muted rounded-md cursor-pointer truncate">
+              <span className="text-lg font-semibold px-2 hover:bg-muted rounded-md cursor-pointer break-all whitespace-normal">
                 {t('sidebar.title')}
               </span>
             </Link>

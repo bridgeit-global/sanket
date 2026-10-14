@@ -52,7 +52,7 @@ const PureChatHistoryItem = ({
           isActive && 'bg-muted font-medium'
         )}
       >
-        <span className="truncate block">{chat.title}</span>
+        <span className="break-all whitespace-normal block">{chat.title}</span>
       </Link>
 
       <DropdownMenu modal={true}>

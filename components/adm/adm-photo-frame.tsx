@@ -40,7 +40,7 @@ export function AdmPhotoFrame({
               />
             </div>
             {photoName && (
-              <p className="max-w-full truncate text-xs text-muted-foreground">{photoName}</p>
+              <p className="max-w-full break-all whitespace-normal text-xs text-muted-foreground">{photoName}</p>
             )}
             <div className="flex gap-2">
               <Button

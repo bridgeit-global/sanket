@@ -693,6 +693,7 @@ export type RegisterEntry = {
   officer: string | null;
   assignedPerson: string | null;
   assignedPhone: string | null;
+  remark: string | null;
   govFollowUpMatterId: string | null;
   createdBy: string;
   createdAt: Date;

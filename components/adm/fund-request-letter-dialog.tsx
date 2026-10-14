@@ -242,7 +242,7 @@ export function FundRequestLetterDialog({
                     <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center">
                       <div className="inline-flex min-h-10 min-w-0 items-center gap-1.5">
                         <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
-                        <span className="truncate text-sm">
+                        <span className="break-all whitespace-normal text-sm">
                           {letter.fileName || t('adm.fundRequestLetters.viewPdf')}
                         </span>
                         <FilePreviewButton

@@ -101,7 +101,7 @@ export function AnalyticsDataTable({
             return (
               <div key={`${label}-${index}`} className="space-y-1">
                 <div className="flex justify-between gap-2 text-xs text-muted-foreground">
-                  <span className="truncate font-medium text-foreground">{label}</span>
+                  <span className="break-all whitespace-normal font-medium text-foreground">{label}</span>
                   <span className="shrink-0 tabular-nums">{value.toLocaleString()}</span>
                 </div>
                 <div className="h-2 rounded-full bg-muted">

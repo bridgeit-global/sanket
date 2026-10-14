@@ -30,19 +30,37 @@ export function LimitedFormField({
   ...props
 }: LimitedFormFieldProps) {
   const length = value.length;
-  const atLimit = length >= maxLength;
+  const atLimit = length > maxLength;
   const nearLimit = length >= Math.floor(maxLength * 0.9);
 
   return (
     <div className="space-y-2">
-      <div className="flex items-baseline justify-between gap-2">
-        <Label htmlFor={id}>
-          {label}
-          {required ? ' *' : null}
-        </Label>
+      <Label htmlFor={id}>
+        {label}
+        {required ? <span className="text-primary"> *</span> : null}
+      </Label>
+      <div className="relative">
+        <Input
+          id={id}
+          type={type}
+          value={value}
+          maxLength={maxLength}
+          placeholder={placeholder}
+          disabled={disabled}
+          required={required}
+          onChange={(event) => onChange(event.target.value)}
+          className={cn(
+            (error || atLimit) && 'border-destructive focus-visible:ring-destructive',
+            className,
+          )}
+          aria-invalid={!!error || atLimit}
+          aria-describedby={error ? `${id}-error` : undefined}
+          {...props}
+        />
+        {/* Counter is out of flow so inputs in the same row stay aligned. */}
         <span
           className={cn(
-            'shrink-0 text-xs tabular-nums',
+            'absolute -bottom-5 right-0 shrink-0 text-xs tabular-nums',
             atLimit
               ? 'font-medium text-destructive'
               : nearLimit
@@ -54,25 +72,8 @@ export function LimitedFormField({
           {length}/{maxLength}
         </span>
       </div>
-      <Input
-        id={id}
-        type={type}
-        value={value}
-        maxLength={maxLength}
-        placeholder={placeholder}
-        disabled={disabled}
-        required={required}
-        onChange={(event) => onChange(event.target.value)}
-        className={cn(
-          (error || atLimit) && 'border-destructive focus-visible:ring-destructive',
-          className,
-        )}
-        aria-invalid={!!error || atLimit}
-        aria-describedby={error ? `${id}-error` : undefined}
-        {...props}
-      />
       {error ? (
-        <p id={`${id}-error`} className="text-xs text-destructive">
+        <p id={`${id}-error`} className="pt-3.5 text-xs text-destructive">
           {error}
         </p>
       ) : null}

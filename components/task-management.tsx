@@ -1970,7 +1970,7 @@ export function TaskManagement({
                                                                 {letter.title}
                                                             </p>
                                                             {letter.referenceNo ? (
-                                                                <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                                                                <p className="mt-0.5 break-all whitespace-normal text-xs text-muted-foreground">
                                                                     {letter.referenceNo}
                                                                 </p>
                                                             ) : null}
@@ -2032,7 +2032,7 @@ export function TaskManagement({
                                                                 <p className="break-words font-medium leading-snug">
                                                                     {letter.title}
                                                                 </p>
-                                                                <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                                                                <p className="mt-0.5 break-all whitespace-normal text-xs text-muted-foreground">
                                                                     {t('taskManagement.dialog.requestLetterLabel')}
                                                                     {' · '}
                                                                     {formatDisplayDateIST(letter.letterDate)}
@@ -2089,7 +2089,7 @@ export function TaskManagement({
                                                         className="flex items-center gap-2 text-sm"
                                                     >
                                                         <Paperclip className="size-3.5 shrink-0 text-muted-foreground" />
-                                                        <span className="min-w-0 flex-1 truncate">
+                                                        <span className="min-w-0 flex-1 break-all whitespace-normal">
                                                             {att.fileName}
                                                         </span>
                                                         {att.fileUrl ? (

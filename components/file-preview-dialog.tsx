@@ -221,7 +221,7 @@ export function FilePreviewDialog({
         className="z-[100] flex h-[90dvh] w-[calc(100%-2rem)] max-w-5xl flex-col gap-0 p-0 sm:w-[95vw]"
       >
         <DialogHeader className="shrink-0 gap-3 space-y-0 border-b p-4 pr-12 text-left sm:flex-row sm:items-center sm:justify-between">
-          <DialogTitle className="min-w-0 truncate pr-2 text-left text-base">
+          <DialogTitle className="min-w-0 break-all whitespace-normal pr-2 text-left text-base">
             {fileName ?? 'Document'}
           </DialogTitle>
           <DialogDescription className="sr-only">

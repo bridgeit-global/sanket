@@ -197,7 +197,9 @@
     "assignedPerson": "Person Assigned To",
     "assignedPhone": "Phone Number",
     "assignedPersonPlaceholder": "Name of the person handling this",
-    "assignedPhonePlaceholder": "10-digit mobile number"
+    "assignedPhonePlaceholder": "10-digit mobile number",
+    "remark": "Remark",
+    "remarkPlaceholder": "Select or type remark..."
   },
   "sir": {
     "title": "Voter Roll - 2024",

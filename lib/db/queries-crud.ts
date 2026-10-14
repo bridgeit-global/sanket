@@ -5189,6 +5189,7 @@ export async function createRegisterEntry({
   officer,
   assignedPerson,
   assignedPhone,
+  remark,
   govFollowUpMatterId,
   createdBy,
 }: {
@@ -5203,6 +5204,7 @@ export async function createRegisterEntry({
   officer?: string;
   assignedPerson?: string;
   assignedPhone?: string;
+  remark?: string;
   govFollowUpMatterId?: string | null;
   createdBy: string;
 }): Promise<RegisterEntry> {
@@ -5223,6 +5225,7 @@ export async function createRegisterEntry({
           officer: officer || null,
           assignedPerson: assignedPerson || null,
           assignedPhone: assignedPhone || null,
+          remark: remark || null,
           govFollowUpMatterId: govFollowUpMatterId || null,
           createdBy,
           createdAt: now,
@@ -5312,6 +5315,8 @@ export async function getRegisterEntriesWithAttachments({
   endDate,
   projectIds,
   projectStatus,
+  documentType,
+  assignedPerson,
   search,
   limit = 100,
 }: {
@@ -5320,6 +5325,8 @@ export async function getRegisterEntriesWithAttachments({
   endDate?: Date | string;
   projectIds?: string[];
   projectStatus?: 'Concept' | 'Proposal' | 'In Progress' | 'Completed';
+  documentType?: string;
+  assignedPerson?: string;
   search?: string;
   limit?: number;
 } = {}): Promise<Array<RegisterEntry & { attachments: RegisterAttachment[] }>> {
@@ -5332,6 +5339,8 @@ export async function getRegisterEntriesWithAttachments({
       conditions.push(pgSql`re.project_id = ANY(${projectIds})`);
     }
     if (projectStatus) conditions.push(pgSql`mp.status = ${projectStatus}`);
+    if (documentType) conditions.push(pgSql`re.document_type = ${documentType}`);
+    if (assignedPerson) conditions.push(pgSql`re.assigned_person = ${assignedPerson}`);
     const searchTerm = search?.trim();
     if (searchTerm) {
       const like = `%${searchTerm}%`;
@@ -5341,6 +5350,7 @@ export async function getRegisterEntriesWithAttachments({
         OR re.from_to ILIKE ${like}
         OR re.assigned_person ILIKE ${like}
         OR re.assigned_phone ILIKE ${like}
+        OR re.remark ILIKE ${like}
       )`);
     }
 
@@ -5367,6 +5377,7 @@ export async function getRegisterEntriesWithAttachments({
         re.officer,
         re.assigned_person,
         re.assigned_phone,
+        re.remark,
         re.created_by AS entry_created_by,
         re.created_at AS entry_created_at,
         re.updated_at AS entry_updated_at,
@@ -5402,6 +5413,7 @@ export async function getRegisterEntriesWithAttachments({
             officer: row.officer,
             assigned_person: row.assigned_person,
             assigned_phone: row.assigned_phone,
+            remark: row.remark,
             created_by: row.entry_created_by,
             created_at: row.entry_created_at,
             updated_at: row.entry_updated_at,
@@ -5620,6 +5632,45 @@ export async function deleteRegisterAttachment(id: string): Promise<void> {
   } catch (error) {
     if (error instanceof ChatSDKError) throw error;
     throw new ChatSDKError('bad_request:database', 'Failed to delete register attachment');
+  }
+}
+
+/** Fetch all unique dispatcher and assigned person names from database staff users and register records. */
+export async function getRegisterDispatchers(): Promise<string[]> {
+  try {
+    const [staffUsers, registerAssignees] = await Promise.all([
+      pgSql`
+        SELECT u.user_id
+        FROM "User" u
+        LEFT JOIN "Role" r ON u.role_id = r.id
+        WHERE (r.name != 'bla' OR r.name IS NULL)
+          AND u.user_id NOT ILIKE 'BLA%'
+        ORDER BY u.user_id ASC
+      `,
+      pgSql`
+        SELECT DISTINCT assigned_person
+        FROM "RegisterEntry"
+        WHERE assigned_person IS NOT NULL
+          AND TRIM(assigned_person) != ''
+      `,
+    ]);
+
+    const names = new Set<string>();
+    for (const row of staffUsers) {
+      const name = String(row.user_id ?? '').trim();
+      if (name) names.add(name);
+    }
+    for (const row of registerAssignees) {
+      const name = String(row.assigned_person ?? '').trim();
+      if (name) names.add(name);
+    }
+
+    return Array.from(names).sort((a, b) =>
+      a.localeCompare(b, undefined, { sensitivity: 'base' }),
+    );
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to get register dispatchers');
   }
 }
 

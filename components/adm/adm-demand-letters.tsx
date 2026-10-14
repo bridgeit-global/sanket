@@ -290,7 +290,7 @@ export function AdmDemandLetters({
                     {letter.fileUrl ? (
                       <div className="inline-flex max-w-full items-center gap-1.5">
                         <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
-                        <span className="max-w-[180px] truncate text-sm">
+                        <span className="break-all whitespace-normal text-sm">
                           {letter.fileName || t('adm.demandLetters.viewDocument')}
                         </span>
                         <FilePreviewButton

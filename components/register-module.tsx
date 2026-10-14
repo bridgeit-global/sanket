@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { DmyDateInput } from '@/components/ui/dmy-date-input';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
 import {
   Select,
   SelectContent,
@@ -67,6 +68,7 @@ import {
   registerEntryFormSchema,
   validateForm,
 } from '@/lib/validations';
+import { cn } from '@/lib/utils';
 
 interface Attachment {
   id: string;
@@ -89,6 +91,7 @@ interface RegisterEntry {
   officer?: string;
   assignedPerson?: string;
   assignedPhone?: string;
+  remark?: string | null;
   attachments?: Attachment[];
   linkedToAdm?: boolean;
   linkedToProject?: boolean;
@@ -112,7 +115,14 @@ type RegisterFormState = {
   officer: string;
   assignedPerson: string;
   assignedPhone: string;
+  remark: string;
 };
+
+const REMARK_PRESET_OPTIONS: ComboboxOption[] = [
+  { value: 'Dispatching', label: 'Dispatching' },
+  { value: 'Cancelled', label: 'Cancelled' },
+  { value: 'Removed', label: 'Removed' },
+];
 
 function createEmptyRegisterForm(
   type: 'inward' | 'outward',
@@ -132,6 +142,7 @@ function createEmptyRegisterForm(
     officer: '',
     assignedPerson: '',
     assignedPhone: '',
+    remark: '',
   };
 }
 
@@ -152,6 +163,7 @@ export function RegisterModule({
   const [entries, setEntries] = useState<RegisterEntry[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [documentTypes, setDocumentTypes] = useState<DocumentTypeMasterRow[]>([]);
+  const [dispatchers, setDispatchers] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState<RegisterFormState>(() =>
     createEmptyRegisterForm(type),
@@ -180,6 +192,8 @@ export function RegisterModule({
     endDate: urlState.endDate,
     projectIds: urlState.projectIds,
     projectStatus: urlState.projectStatus,
+    documentType: urlState.documentType,
+    assignedPerson: urlState.assignedPerson,
   });
 
   const syncRegisterUrl = useCallback(
@@ -190,6 +204,8 @@ export function RegisterModule({
           endDate: updates.endDate ?? filters.endDate,
           projectIds: updates.projectIds ?? filters.projectIds,
           projectStatus: updates.projectStatus ?? filters.projectStatus,
+          documentType: updates.documentType ?? filters.documentType,
+          assignedPerson: updates.assignedPerson ?? filters.assignedPerson,
           search: updates.search ?? searchTerm,
           page: resetPage ? 1 : (updates.page ?? listPage),
           limit: updates.limit ?? listLimit,
@@ -213,6 +229,8 @@ export function RegisterModule({
         endDate: next.endDate,
         projectIds: next.projectIds,
         projectStatus: next.projectStatus,
+        documentType: next.documentType,
+        assignedPerson: next.assignedPerson,
       },
       options?.resetPage ?? true,
     );
@@ -295,6 +313,12 @@ export function RegisterModule({
     });
   };
 
+  // Phone is optional: only flag it when it is non-empty and not exactly 10 digits.
+  const assignedPhoneError =
+    form.assignedPhone.length > 0 && !/^\d{10}$/.test(form.assignedPhone)
+      ? 'Enter a valid 10-digit Indian mobile number'
+      : formErrors.assignedPhone;
+
   const DOCUMENT_TYPE_NONE = '__none__';
 
   const setDocumentType = (value: string) => {
@@ -325,11 +349,18 @@ export function RegisterModule({
       if (filters.projectStatus && filters.projectStatus !== 'all') {
         params.set('projectStatus', filters.projectStatus);
       }
+      if (filters.documentType && filters.documentType !== 'all') {
+        params.set('documentType', filters.documentType);
+      }
+      if (filters.assignedPerson && filters.assignedPerson !== 'all') {
+        params.set('assignedPerson', filters.assignedPerson);
+      }
 
-      const [entriesRes, projectsRes, documentTypesRes] = await Promise.all([
+      const [entriesRes, projectsRes, documentTypesRes, dispatchersRes] = await Promise.all([
         fetch(`/api/register?${params.toString()}`),
         fetch('/api/projects'),
         fetch('/api/document-types'),
+        fetch('/api/register/dispatchers'),
       ]);
 
       if (entriesRes.ok) {
@@ -348,6 +379,11 @@ export function RegisterModule({
         setDocumentTypes(
           (documentTypesData?.documentTypes ?? []) as DocumentTypeMasterRow[],
         );
+      }
+
+      if (dispatchersRes.ok) {
+        const dispatchersData = await dispatchersRes.json();
+        setDispatchers(dispatchersData);
       }
     } catch (error) {
       console.error('Error loading data:', error);
@@ -368,6 +404,7 @@ export function RegisterModule({
       officer: form.officer || undefined,
       assignedPerson: form.assignedPerson || undefined,
       assignedPhone: form.assignedPhone || undefined,
+      remark: form.remark || undefined,
     });
 
     if (!validation.success) {
@@ -403,6 +440,7 @@ export function RegisterModule({
           officer: form.officer || undefined,
           assignedPerson: form.assignedPerson || undefined,
           assignedPhone: form.assignedPhone || undefined,
+          remark: form.remark || undefined,
           autoSequence: type === 'outward' ? referenceNumberAutoRef.current : undefined,
         }),
       });
@@ -532,6 +570,7 @@ export function RegisterModule({
       officer: entry.officer || '',
       assignedPerson: entry.assignedPerson || '',
       assignedPhone: entry.assignedPhone || '',
+      remark: entry.remark || '',
     });
   };
 
@@ -556,6 +595,7 @@ export function RegisterModule({
           officer: form.officer,
           assignedPerson: form.assignedPerson,
           assignedPhone: form.assignedPhone,
+          remark: form.remark || undefined,
         }),
       });
 
@@ -613,6 +653,11 @@ export function RegisterModule({
 
   const heading = type === 'inward' ? t('register.inward') : t('register.outward');
   const labelFromTo = t('forms.fromTo');
+
+  const dispatcherOptions: ComboboxOption[] = dispatchers.map((name) => ({
+    value: name,
+    label: name,
+  }));
 
   // Filter entries based on search term
   const filteredEntries = entries.filter((entry) => {
@@ -743,11 +788,11 @@ export function RegisterModule({
           </div>
         </CardHeader>
         <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-6">
-            <div className="space-y-2 xl:col-span-2">
+          <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-x-6 gap-y-8 md:grid-cols-4">
+            <div className="space-y-2">
               <Label htmlFor="documentType">
                 {t('letterGeneration.fields.referencePrefix')}
-                {type === 'outward' ? ' *' : ''}
+                {type === 'outward' ? <span className="text-primary"> *</span> : null}
               </Label>
               <Select
                 value={form.documentType || DOCUMENT_TYPE_NONE}
@@ -771,7 +816,7 @@ export function RegisterModule({
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2 xl:col-span-2">
+            <div className="space-y-2">
               <Label htmlFor="date">{t('common.date')}</Label>
               <DmyDateInput
                 id="date"
@@ -780,7 +825,7 @@ export function RegisterModule({
                 required
               />
             </div>
-            <div className="space-y-2 sm:col-span-2 xl:col-span-2">
+            <div className="space-y-2 md:col-span-2">
               <LimitedFormField
                 id="fromTo"
                 label={labelFromTo}
@@ -795,7 +840,7 @@ export function RegisterModule({
                 }}
               />
             </div>
-            <div className="space-y-2 sm:col-span-2 xl:col-span-3">
+            <div className="space-y-2 md:col-span-2">
               <LimitedFormField
                 id="subject"
                 label={t('forms.subject')}
@@ -810,7 +855,7 @@ export function RegisterModule({
                 }}
               />
             </div>
-            <div className="space-y-2 xl:col-span-3">
+            <div className="space-y-2">
               <Label htmlFor="project">Project</Label>
               <Select
                 value={form.projectId || 'none'}
@@ -831,7 +876,7 @@ export function RegisterModule({
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2 xl:col-span-2">
+            <div className="space-y-2">
               <LimitedFormField
                 id="mode"
                 label="Mode"
@@ -845,7 +890,7 @@ export function RegisterModule({
                 }}
               />
             </div>
-            <div className="space-y-2 xl:col-span-2">
+            <div className="space-y-2">
               {type === 'outward' ? (
                 <LimitedFormField
                   id="refNumber"
@@ -879,7 +924,7 @@ export function RegisterModule({
                 />
               )}
             </div>
-            <div className="space-y-2 xl:col-span-2">
+            <div className="space-y-2">
               <LimitedFormField
                 id="officer"
                 label="Marked to Officer"
@@ -893,38 +938,55 @@ export function RegisterModule({
                 }}
               />
             </div>
-            <div className="space-y-2 xl:col-span-3">
-              <LimitedFormField
+            <div className="space-y-2">
+              <Label htmlFor="assignedPerson">{t('register.assignedPerson')}</Label>
+              <Combobox
                 id="assignedPerson"
-                label={t('register.assignedPerson')}
-                placeholder={t('register.assignedPersonPlaceholder')}
+                options={dispatcherOptions}
                 value={form.assignedPerson}
-                maxLength={REGISTER_ENTRY_FIELD_LIMITS.assignedPerson}
-                error={formErrors.assignedPerson}
-                onChange={(value) => {
+                onValueChange={(value) => {
                   setForm({ ...form, assignedPerson: value });
                   clearFieldError('assignedPerson');
                 }}
+                placeholder={t('register.assignedPersonPlaceholder')}
+                allowCustom
+                aria-invalid={!!formErrors.assignedPerson}
               />
             </div>
-            <div className="space-y-2 xl:col-span-3">
+            <div className="space-y-2">
               <LimitedFormField
                 id="assignedPhone"
                 label={t('register.assignedPhone')}
                 placeholder={t('register.assignedPhonePlaceholder')}
                 value={form.assignedPhone}
-                maxLength={REGISTER_ENTRY_FIELD_LIMITS.assignedPhone}
-                error={formErrors.assignedPhone}
+                maxLength={10}
+                error={assignedPhoneError}
                 type="tel"
                 inputMode="numeric"
                 autoComplete="tel"
                 onChange={(value) => {
-                  setForm({ ...form, assignedPhone: value });
+                  const numericOnly = value.replace(/\D/g, '');
+                  setForm({ ...form, assignedPhone: numericOnly });
                   clearFieldError('assignedPhone');
                 }}
               />
             </div>
-            <div className="space-y-2 sm:col-span-2 xl:col-span-6">
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="remark">Remark</Label>
+              <Combobox
+                id="remark"
+                options={REMARK_PRESET_OPTIONS}
+                value={form.remark}
+                onValueChange={(value) => {
+                  setForm({ ...form, remark: value });
+                  clearFieldError('remark');
+                }}
+                placeholder="Select or type a remark..."
+                allowCustom
+                aria-invalid={!!formErrors.remark}
+              />
+            </div>
+            <div className="space-y-2 md:col-span-4">
               <div className="flex items-center gap-3">
                 <Button
                   type="button"
@@ -974,7 +1036,7 @@ export function RegisterModule({
                 </DialogContent>
               </Dialog>
             </div>
-            <div className="flex sm:col-span-2 sm:justify-end xl:col-span-6">
+            <div className="flex md:col-span-4 md:justify-end">
               <Button type="submit" disabled={uploadingFiles} className="w-full sm:w-auto">
                 {uploadingFiles ? 'Uploading...' : 'Add Entry'}
               </Button>
@@ -995,7 +1057,7 @@ export function RegisterModule({
         <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
           {/* Filters */}
           <div className="mb-4 space-y-3">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
               <div className="space-y-2">
                 <Label htmlFor="startDate" className="text-xs text-muted-foreground">Start Date</Label>
                 <DmyDateInput
@@ -1069,6 +1131,51 @@ export function RegisterModule({
                   </Select>
                 </div>
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="filter-documentType" className="text-xs text-muted-foreground">Document Type</Label>
+                <Select
+                  value={filters.documentType}
+                  onValueChange={(value) =>
+                    updateFilters({ ...filters, documentType: value })
+                  }
+                >
+                  <SelectTrigger id="filter-documentType">
+                    <SelectValue placeholder="All Types" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Types</SelectItem>
+                    {(documentTypes.length > 0
+                      ? documentTypes.map((docType) => docType.code)
+                      : [...DOCUMENT_TYPES]
+                    ).map((docType) => (
+                      <SelectItem key={docType} value={docType}>
+                        {documentTypeLabel(docType, letterLocale, documentTypes)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="filter-assignedPerson" className="text-xs text-muted-foreground">Person Assigned To</Label>
+                <Select
+                  value={filters.assignedPerson}
+                  onValueChange={(value) =>
+                    updateFilters({ ...filters, assignedPerson: value })
+                  }
+                >
+                  <SelectTrigger id="filter-assignedPerson">
+                    <SelectValue placeholder="All Persons" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Persons</SelectItem>
+                    {dispatchers.map((name) => (
+                      <SelectItem key={name} value={name}>
+                        {name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             {filters.projectIds.length > 0 && (
               <div className="flex flex-wrap gap-2">
@@ -1093,7 +1200,7 @@ export function RegisterModule({
                 })}
               </div>
             )}
-            {(filters.startDate || filters.endDate || filters.projectIds.length > 0 || filters.projectStatus !== 'all') && (
+            {(filters.startDate || filters.endDate || filters.projectIds.length > 0 || filters.projectStatus !== 'all' || filters.documentType !== 'all' || filters.assignedPerson !== 'all') && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -1103,6 +1210,8 @@ export function RegisterModule({
                     endDate: '',
                     projectIds: [] as string[],
                     projectStatus: 'all' as const,
+                    documentType: 'all',
+                    assignedPerson: 'all',
                   };
                   setFilters(cleared);
                   setListPage(1);
@@ -1388,23 +1497,24 @@ export function RegisterModule({
           void refreshReferenceSequence(nextForm.refPrefix, { force: true });
         }
       }}>
-        <DialogContent className="max-h-[90vh] w-[calc(100%-1.5rem)] max-w-2xl overflow-y-auto p-4 sm:w-full sm:p-6">
-          <DialogHeader>
-            <DialogTitle>Edit Register Entry</DialogTitle>
+        <DialogContent className="flex h-auto max-h-[90vh] w-[calc(100%-1.5rem)] max-w-2xl flex-col gap-0 overflow-hidden p-0 sm:w-full">
+          <DialogHeader className="shrink-0 p-4 pb-3 pr-10 sm:p-6 sm:pb-4 sm:pr-10">
+            <DialogTitle>
+              Edit Register Entry ({editingEntry?.type === 'inward' ? 'Inward' : 'Outward'})
+            </DialogTitle>
             <DialogDescription>
               Update the details of this {editingEntry?.type} entry
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleUpdateEntry} className="space-y-4">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Type</Label>
-                <Input value={editingEntry?.type} disabled />
-              </div>
+          <form
+            onSubmit={handleUpdateEntry}
+            className="min-h-0 flex-1 overflow-y-auto px-4 sm:px-6"
+          >
+            <div className="grid grid-cols-1 gap-x-4 gap-y-6 pb-6 pt-1 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="edit-documentType">
                   {t('letterGeneration.fields.referencePrefix')}
-                  {type === 'outward' ? ' *' : ''}
+                  {type === 'outward' ? <span className="text-primary"> *</span> : null}
                 </Label>
                 <Select
                   value={form.documentType || DOCUMENT_TYPE_NONE}
@@ -1437,57 +1547,55 @@ export function RegisterModule({
                   required
                 />
               </div>
-            </div>
-            <div className="space-y-2">
-              <LimitedFormField
-                id="edit-fromTo"
-                label={editingEntry?.type === 'inward' ? 'From' : 'To'}
-                value={form.fromTo}
-                maxLength={REGISTER_ENTRY_FIELD_LIMITS.fromTo}
-                error={formErrors.fromTo}
-                required
-                onChange={(value) => {
-                  setForm({ ...form, fromTo: value });
-                  clearFieldError('fromTo');
-                }}
-              />
-            </div>
-            <div className="space-y-2">
-              <LimitedFormField
-                id="edit-subject"
-                label="Subject"
-                value={form.subject}
-                maxLength={REGISTER_ENTRY_FIELD_LIMITS.subject}
-                error={formErrors.subject}
-                required
-                onChange={(value) => {
-                  setForm({ ...form, subject: value });
-                  clearFieldError('subject');
-                }}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-project">Project</Label>
-              <Select
-                value={form.projectId || 'none'}
-                onValueChange={(value) =>
-                  setForm({ ...form, projectId: value === 'none' ? '' : value })
-                }
-              >
-                <SelectTrigger id="edit-project">
-                  <SelectValue placeholder="Select project (optional)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {projects.map((project) => (
-                    <SelectItem key={project.id} value={project.id}>
-                      {project.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="space-y-2 md:col-span-2">
+                <LimitedFormField
+                  id="edit-fromTo"
+                  label={editingEntry?.type === 'inward' ? 'From' : 'To'}
+                  value={form.fromTo}
+                  maxLength={REGISTER_ENTRY_FIELD_LIMITS.fromTo}
+                  error={formErrors.fromTo}
+                  required
+                  onChange={(value) => {
+                    setForm({ ...form, fromTo: value });
+                    clearFieldError('fromTo');
+                  }}
+                />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <LimitedFormField
+                  id="edit-subject"
+                  label="Subject"
+                  value={form.subject}
+                  maxLength={REGISTER_ENTRY_FIELD_LIMITS.subject}
+                  error={formErrors.subject}
+                  required
+                  onChange={(value) => {
+                    setForm({ ...form, subject: value });
+                    clearFieldError('subject');
+                  }}
+                />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="edit-project">Project</Label>
+                <Select
+                  value={form.projectId || 'none'}
+                  onValueChange={(value) =>
+                    setForm({ ...form, projectId: value === 'none' ? '' : value })
+                  }
+                >
+                  <SelectTrigger id="edit-project">
+                    <SelectValue placeholder="Select project (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {projects.map((project) => (
+                      <SelectItem key={project.id} value={project.id}>
+                        {project.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="space-y-2">
                 <LimitedFormField
                   id="edit-mode"
@@ -1533,7 +1641,7 @@ export function RegisterModule({
                   />
                 )}
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2 md:col-span-2">
                 <LimitedFormField
                   id="edit-officer"
                   label="Officer"
@@ -1546,37 +1654,56 @@ export function RegisterModule({
                   }}
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-assignedPerson">{t('register.assignedPerson')}</Label>
+                <Combobox
+                  id="edit-assignedPerson"
+                  options={dispatcherOptions}
+                  value={form.assignedPerson}
+                  onValueChange={(value) => {
+                    setForm({ ...form, assignedPerson: value });
+                    clearFieldError('assignedPerson');
+                  }}
+                  placeholder={t('register.assignedPersonPlaceholder')}
+                  allowCustom
+                  aria-invalid={!!formErrors.assignedPerson}
+                />
+              </div>
+              <div className="space-y-2">
+                <LimitedFormField
+                  id="edit-assignedPhone"
+                  label={t('register.assignedPhone')}
+                  placeholder={t('register.assignedPhonePlaceholder')}
+                  value={form.assignedPhone}
+                  maxLength={10}
+                  error={assignedPhoneError}
+                  type="tel"
+                  inputMode="numeric"
+                  autoComplete="tel"
+                  onChange={(value) => {
+                    const numericOnly = value.replace(/\D/g, '');
+                    setForm({ ...form, assignedPhone: numericOnly });
+                    clearFieldError('assignedPhone');
+                  }}
+                />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="edit-remark">Remark</Label>
+                <Combobox
+                  id="edit-remark"
+                  options={REMARK_PRESET_OPTIONS}
+                  value={form.remark}
+                  onValueChange={(value) => {
+                    setForm({ ...form, remark: value });
+                    clearFieldError('remark');
+                  }}
+                  placeholder="Select or type a remark..."
+                  allowCustom
+                  aria-invalid={!!formErrors.remark}
+                />
+              </div>
             </div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <LimitedFormField
-                id="edit-assignedPerson"
-                label={t('register.assignedPerson')}
-                placeholder={t('register.assignedPersonPlaceholder')}
-                value={form.assignedPerson}
-                maxLength={REGISTER_ENTRY_FIELD_LIMITS.assignedPerson}
-                error={formErrors.assignedPerson}
-                onChange={(value) => {
-                  setForm({ ...form, assignedPerson: value });
-                  clearFieldError('assignedPerson');
-                }}
-              />
-              <LimitedFormField
-                id="edit-assignedPhone"
-                label={t('register.assignedPhone')}
-                placeholder={t('register.assignedPhonePlaceholder')}
-                value={form.assignedPhone}
-                maxLength={REGISTER_ENTRY_FIELD_LIMITS.assignedPhone}
-                error={formErrors.assignedPhone}
-                type="tel"
-                inputMode="numeric"
-                autoComplete="tel"
-                onChange={(value) => {
-                  setForm({ ...form, assignedPhone: value });
-                  clearFieldError('assignedPhone');
-                }}
-              />
-            </div>
-            <DialogFooter>
+            <div className="sticky bottom-0 -mx-4 flex shrink-0 justify-end gap-2 border-t bg-background p-4 sm:-mx-6">
               <Button
                 type="button"
                 variant="outline"
@@ -1593,7 +1720,7 @@ export function RegisterModule({
                 Cancel
               </Button>
               <Button type="submit">Save Changes</Button>
-            </DialogFooter>
+            </div>
           </form>
         </DialogContent>
       </Dialog>

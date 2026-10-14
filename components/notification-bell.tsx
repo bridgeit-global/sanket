@@ -214,7 +214,7 @@ export function NotificationBell() {
                   )}
                 />
                 <div className="min-w-0 flex-1 space-y-0.5">
-                  <p className="truncate text-sm font-medium leading-5">
+                  <p className="break-all whitespace-normal text-sm font-medium leading-5">
                     {item.title}
                   </p>
                   {item.body ? (

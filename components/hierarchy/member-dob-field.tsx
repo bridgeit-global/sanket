@@ -87,7 +87,7 @@ export function MemberDobField({
             compact ? 'text-[11px]' : 'mt-2 text-xs',
           )}
         >
-          <span className="truncate">
+          <span className="break-all whitespace-normal">
             {t('hierarchyModule.dobLabel')}: {formatDisplayDateIST(dob)}
           </span>
           {canEdit ? (

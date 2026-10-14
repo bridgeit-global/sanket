@@ -197,7 +197,9 @@
     "assignedPerson": "नियुक्त व्यक्ती",
     "assignedPhone": "फोन क्रमांक",
     "assignedPersonPlaceholder": "हाताळणाऱ्या व्यक्तीचे नाव",
-    "assignedPhonePlaceholder": "१० अंकी मोबाइल क्रमांक"
+    "assignedPhonePlaceholder": "१० अंकी मोबाइल क्रमांक",
+    "remark": "शेरा",
+    "remarkPlaceholder": "शेरा निवडा किंवा टाईप करा..."
   },
   "sir": {
     "title": "एसआयआर",

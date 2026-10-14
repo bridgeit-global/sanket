@@ -32,6 +32,12 @@ export async function GET(request: NextRequest) {
       | 'In Progress'
       | 'Completed'
       | null;
+    const documentTypeParam = searchParams.get('documentType')?.trim();
+    const assignedPersonParam = searchParams.get('assignedPerson')?.trim();
+    const documentType =
+      documentTypeParam && documentTypeParam !== 'all' ? documentTypeParam : undefined;
+    const assignedPerson =
+      assignedPersonParam && assignedPersonParam !== 'all' ? assignedPersonParam : undefined;
     const search = searchParams.get('search')?.trim() || undefined;
     const limitParam = searchParams.get('limit');
     const limit = limitParam
@@ -68,6 +74,8 @@ export async function GET(request: NextRequest) {
             ? projectIdsParam.split(',').filter(Boolean)
             : undefined,
           projectStatus: projectStatusParam || undefined,
+          documentType,
+          assignedPerson,
           search,
           limit,
         });
@@ -88,6 +96,8 @@ export async function GET(request: NextRequest) {
       endDate,
       projectIds,
       projectStatus,
+      documentType,
+      assignedPerson,
       search,
       limit,
     });
@@ -123,6 +133,7 @@ export async function POST(request: NextRequest) {
       officer,
       assignedPerson,
       assignedPhone,
+      remark,
       autoSequence,
     } = body;
 
@@ -192,6 +203,7 @@ export async function POST(request: NextRequest) {
       officer: officer || undefined,
       assignedPerson: assignedPerson || undefined,
       assignedPhone: assignedPhone || undefined,
+      remark: remark || undefined,
     });
     if (!validation.success) {
       const firstError = Object.values(validation.errors)[0];
@@ -226,6 +238,7 @@ export async function POST(request: NextRequest) {
       officer: validation.data.officer,
       assignedPerson: validation.data.assignedPerson,
       assignedPhone: validation.data.assignedPhone,
+      remark: validation.data.remark,
       createdBy: session.user.id,
     });
 

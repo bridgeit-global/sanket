@@ -196,7 +196,7 @@ export function RegisterAttachmentDialog({
       <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Manage Documents</DialogTitle>
-          <DialogDescription className="truncate">
+          <DialogDescription className="break-all whitespace-normal">
             {entrySubject}
           </DialogDescription>
         </DialogHeader>
@@ -232,7 +232,7 @@ export function RegisterAttachmentDialog({
                 >
                   {getFileIcon(attachment.fileName)}
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">
+                    <p className="text-sm font-medium break-all whitespace-normal">
                       {attachment.fileName}
                     </p>
                     <p className="text-xs text-muted-foreground">

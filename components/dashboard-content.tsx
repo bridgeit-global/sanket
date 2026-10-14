@@ -117,7 +117,7 @@ function UpcomingBirthdaysList({
               className="flex items-start justify-between gap-3"
             >
               <div className="min-w-0 flex-1">
-                <p className="font-medium truncate">
+                <p className="font-medium break-all whitespace-normal">
                   <Link
                     href={hierarchyMemberHref(item.memberId)}
                     className="text-foreground hover:text-primary hover:underline underline-offset-2"
@@ -138,7 +138,7 @@ function UpcomingBirthdaysList({
                     ))}
                   </div>
                 ) : null}
-                <p className="text-xs text-muted-foreground truncate">
+                <p className="text-xs text-muted-foreground break-all whitespace-normal">
                   {[
                     item.primaryPostLabel ?? t('dashboard.cadreMember'),
                     item.turningAge != null

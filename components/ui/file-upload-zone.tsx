@@ -338,7 +338,7 @@ export const FileUploadZone = React.forwardRef<HTMLInputElement, FileUploadZoneP
               >
                 <div className="flex items-center gap-2 min-w-0 pr-2">
                   {getFileIcon(file.name)}
-                  <span className="truncate font-medium text-foreground">{file.name}</span>
+                  <span className="break-all whitespace-normal font-medium text-foreground">{file.name}</span>
                   <span className="shrink-0 text-muted-foreground/70">
                     ({formatBytes(file.size)})
                   </span>

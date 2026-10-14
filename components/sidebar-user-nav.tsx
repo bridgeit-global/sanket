@@ -58,7 +58,7 @@ export function SidebarUserNav({ user }: { user: User }) {
                   height={24}
                   className="rounded-full"
                 />
-                <span data-testid="user-identifier" className="truncate">
+                <span data-testid="user-identifier" className="break-all whitespace-normal">
                   {identifier}
                 </span>
                 <ChevronUp className="ml-auto" />

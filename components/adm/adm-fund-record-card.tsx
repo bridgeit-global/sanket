@@ -388,7 +388,7 @@ export function AdmFundRecordCard({
                     className="inline-flex min-h-11 w-full items-center gap-2 rounded-md border border-border px-3 py-2 text-sm sm:w-auto sm:min-h-9 sm:border-0 sm:px-0 sm:py-0"
                   >
                     <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                    <span className="min-w-0 flex-1 truncate">{name}</span>
+                    <span className="min-w-0 flex-1 break-all whitespace-normal">{name}</span>
                     <FilePreviewButton fileUrl={href} fileName={name} />
                   </div>
                 );

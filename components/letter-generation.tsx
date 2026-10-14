@@ -9468,7 +9468,7 @@ export function LetterGeneration({
                       >
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                           <div className="min-w-0 space-y-1">
-                            <p className="truncate font-medium">
+                            <p className="break-all whitespace-normal font-medium">
                               {letter.referenceNo
                                 ? formatReferenceForDisplay(letter.referenceNo, locale)
                                 : '—'}
