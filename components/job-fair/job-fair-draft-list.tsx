@@ -629,8 +629,8 @@ export function JobFairDraftList({
                     </SelectItem>
                   ))}
                   {assignedTo &&
-                  assignedTo !== 'unassigned' &&
-                  !assignees.some((person) => person.id === assignedTo) ? (
+                    assignedTo !== 'unassigned' &&
+                    !assignees.some((person) => person.id === assignedTo) ? (
                     <SelectItem value={assignedTo}>Staff</SelectItem>
                   ) : null}
                 </SelectContent>
@@ -699,7 +699,7 @@ export function JobFairDraftList({
                     <SortableColumnHead label="Name" column="fullName" sort={sort} dir={dir} onSort={onToggleSort} />
                     <SortableColumnHead label="Mobile" column="mobile" sort={sort} dir={dir} onSort={onToggleSort} />
                     <SortableColumnHead label="Stopped at" column="step" sort={sort} dir={dir} onSort={onToggleSort} />
-                    <SortableColumnHead label="WhatsApp" column="whatsapp" sort={sort} dir={dir} onSort={onToggleSort} />
+                    {/* <SortableColumnHead label="WhatsApp" column="whatsapp" sort={sort} dir={dir} onSort={onToggleSort} /> */}
                     <TableHead>Follow-up</TableHead>
                     <SortableColumnHead label="Assign to" column="assignedTo" sort={sort} dir={dir} onSort={onToggleSort} />
                     <SortableColumnHead label="Area" column="area" sort={sort} dir={dir} onSort={onToggleSort} />
@@ -732,13 +732,13 @@ export function JobFairDraftList({
                           Step {item.step + 1} · {stepLabel(item.step)}
                         </Badge>
                       </TableCell>
-                      <TableCell>
+                      {/* <TableCell>
                         <WhatsappVerifyControl
                           item={item}
                           pending={markingId === item.id}
                           onMark={() => markWhatsappVerified(item)}
                         />
-                      </TableCell>
+                      </TableCell> */}
                       <TableCell>
                         <LogButton
                           count={item.logCount}
@@ -806,11 +806,11 @@ export function JobFairDraftList({
                     <PhoneCallButton phone={`+91${item.mobile}`} className="h-10" />
                   </div>
                   <div className="flex flex-col gap-2 px-4 pb-4 sm:flex-row">
-                    <WhatsappVerifyControl
+                    {/* <WhatsappVerifyControl
                       item={item}
                       pending={markingId === item.id}
                       onMark={() => markWhatsappVerified(item)}
-                    />
+                    /> */}
                     <LogButton
                       count={item.logCount}
                       onClick={() => setLogDraft(item)}
@@ -893,12 +893,12 @@ export function JobFairDraftList({
                   wide
                   onClick={() => setLogDraft(selected)}
                 />
-                <WhatsappVerifyControl
+                {/* <WhatsappVerifyControl
                   item={selected}
                   pending={markingId === selected.id}
                   onMark={() => markWhatsappVerified(selected)}
                   wide
-                />
+                /> */}
                 <PhoneCallButton phone={`+91${selected.mobile}`} className="h-10 w-full sm:w-auto" />
                 {/^[6-9]\d{9}$/.test(selected.values.whatsapp || selected.mobile) ? (
                   <Button variant="outline" asChild className="h-10 w-full sm:w-auto">
