@@ -553,8 +553,8 @@ export function RegisterModule({
     const documentType =
       type === 'outward'
         ? coerceDocumentType(parsed.prefix) ||
-          entry.documentType ||
-          defaultReferencePrefix()
+        entry.documentType ||
+        defaultReferencePrefix()
         : entry.documentType || '';
     setForm({
       documentType,
@@ -788,7 +788,7 @@ export function RegisterModule({
           </div>
         </CardHeader>
         <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-x-6 gap-y-8 md:grid-cols-4">
+          <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-3 md:grid-cols-4">
             <div className="space-y-2">
               <Label htmlFor="documentType">
                 {t('letterGeneration.fields.referencePrefix')}
@@ -924,20 +924,18 @@ export function RegisterModule({
                 />
               )}
             </div>
-            <div className="space-y-2">
-              <LimitedFormField
-                id="officer"
-                label="Marked to Officer"
-                placeholder="PA, PRO, Office staff..."
-                value={form.officer}
-                maxLength={REGISTER_ENTRY_FIELD_LIMITS.officer}
-                error={formErrors.officer}
-                onChange={(value) => {
-                  setForm({ ...form, officer: value });
-                  clearFieldError('officer');
-                }}
-              />
-            </div>
+            <LimitedFormField
+              id="officer"
+              label="Marked to Officer"
+              placeholder="PA, PRO, Office staff..."
+              value={form.officer}
+              maxLength={REGISTER_ENTRY_FIELD_LIMITS.officer}
+              error={formErrors.officer}
+              onChange={(value) => {
+                setForm({ ...form, officer: value });
+                clearFieldError('officer');
+              }}
+            />
             <div className="space-y-2">
               <Label htmlFor="assignedPerson">{t('register.assignedPerson')}</Label>
               <Combobox
