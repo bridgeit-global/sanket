@@ -23,6 +23,8 @@ export type JobFairCheckInRecord = {
   jobTypes: string[];
   jobTypeOther: string | null;
   status: string;
+  /** Venue arrival. Null until the desk checks the candidate in. */
+  checkedInAt: string | null;
 };
 
 export type JobFairCheckInVisitor = {
@@ -32,10 +34,6 @@ export type JobFairCheckInVisitor = {
   mobileNumber: string;
   serviceName: string | null;
 };
-
-export function isJobFairCheckedIn(status: string): boolean {
-  return status === 'attended' || status === 'shortlisted' || status === 'placed';
-}
 
 export function jobFairStatusLabel(status: string): string {
   if (status === 'attended') return 'Checked in';

@@ -9,9 +9,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { formatDisplayDateTimeIST } from '@/lib/ist-date';
 import { buildThermalTicketText, shareThermalTicketPdf } from '@/lib/thermal/receipt';
 import {
-  isJobFairCheckedIn,
   jobFairStatusLabel,
   parseJobFairRegistrationNo,
   type JobFairCheckInRecord,
@@ -32,7 +32,7 @@ import {
 
 type CheckInResult = {
   registration: JobFairCheckInRecord;
-  visitor: JobFairCheckInVisitor;
+  visitor: JobFairCheckInVisitor | null;
   alreadyCheckedIn: boolean;
 };
 
@@ -103,36 +103,53 @@ export function JobFairCheckIn({
     });
   }, [initialCode, lookup]);
 
-  const checkIn = async () => {
+  const submit = async (addVisitor: boolean) => {
     if (!registration) return;
     setCheckingIn(true);
     try {
       const res = await fetch('/api/job-fair/check-in', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: registration.registrationNo }),
+        body: JSON.stringify({ code: registration.registrationNo, addVisitor }),
       });
       const json = (await res.json()) as CheckInResult & { error?: string };
-      if (!res.ok || !json.visitor) {
-        throw new Error(json.error || 'Could not check in this registration.');
+      if (!res.ok || !json.registration) {
+        throw new Error(
+          json.error ||
+            (addVisitor
+              ? 'Could not add this registration as a visitor.'
+              : 'Could not check in this registration.'),
+        );
       }
       setRegistration(json.registration);
       setResult(json);
       onCheckedIn?.();
-      toast.success(
-        json.alreadyCheckedIn
-          ? `${json.visitor.name} is already checked in. Visit token ${json.visitor.token}.`
-          : `${json.visitor.name} checked in. Visit token ${json.visitor.token}.`,
-      );
+      if (json.visitor) {
+        toast.success(
+          `${json.visitor.name} added as a visitor. Visit token ${json.visitor.token}.`,
+        );
+      } else {
+        toast.success(
+          json.alreadyCheckedIn
+            ? `${json.registration.fullName} is already checked in.`
+            : `${json.registration.fullName} checked in.`,
+        );
+      }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not check in this registration.');
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : addVisitor
+            ? 'Could not add this registration as a visitor.'
+            : 'Could not check in this registration.',
+      );
     } finally {
       setCheckingIn(false);
     }
   };
 
   const printToken = async () => {
-    if (!result) return;
+    if (!result?.visitor) return;
     setPrinting(true);
     try {
       const receiptText = buildThermalTicketText({
@@ -170,7 +187,7 @@ export function JobFairCheckIn({
       <CardHeader className="p-4 sm:p-6">
         <CardTitle className="text-base sm:text-lg">YUVAAZ check-in</CardTitle>
         <CardDescription className="text-xs sm:text-sm">
-          Scan the registration QR to confirm the candidate and add them as a visitor.
+          Scan the registration QR to check the candidate in. Adding them as a visitor is optional.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4 p-4 pt-0 sm:p-6 sm:pt-0">
@@ -219,7 +236,7 @@ export function JobFairCheckIn({
                   {registration.registrationNo}
                 </div>
               </div>
-              <Badge variant={isJobFairCheckedIn(registration.status) ? 'default' : 'secondary'}>
+              <Badge variant={registration.checkedInAt ? 'default' : 'secondary'}>
                 {jobFairStatusLabel(registration.status)}
               </Badge>
             </div>
@@ -241,6 +258,12 @@ export function JobFairCheckIn({
                   ],
                   ['Experience', optionLabel(EXPERIENCE_OPTIONS, registration.experience)],
                   ['Job preference', jobTypesText(registration) || '—'],
+                  [
+                    'Checked in',
+                    registration.checkedInAt
+                      ? formatDisplayDateTimeIST(registration.checkedInAt)
+                      : '—',
+                  ],
                 ] as Array<[string, string]>
               ).map(([label, value]) => (
                 <div key={label} className="min-w-0">
@@ -250,7 +273,7 @@ export function JobFairCheckIn({
               ))}
             </dl>
 
-            {result ? (
+            {result?.visitor ? (
               <div className="space-y-3 rounded-lg border border-green-200 bg-green-50 p-4 text-green-900">
                 <div className="flex items-start gap-2">
                   <CheckCircle2 className="mt-0.5 size-5 shrink-0" />
@@ -281,22 +304,64 @@ export function JobFairCheckIn({
                   </Button>
                 </div>
               </div>
+            ) : result ? (
+              <div className="space-y-3 rounded-lg border border-green-200 bg-green-50 p-4 text-green-900">
+                <div className="flex items-start gap-2">
+                  <CheckCircle2 className="mt-0.5 size-5 shrink-0" />
+                  <div className="min-w-0 font-medium">
+                    {result.alreadyCheckedIn ? 'Already checked in.' : 'Checked in.'}
+                  </div>
+                </div>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-10 w-full bg-white sm:w-auto"
+                    disabled={checkingIn}
+                    onClick={() => void submit(true)}
+                  >
+                    {checkingIn ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <UserRoundPlus className="size-4" />
+                    )}
+                    Add as visitor
+                  </Button>
+                  <Button type="button" variant="outline" className="h-10 w-full bg-white sm:w-auto" onClick={reset}>
+                    Scan another
+                  </Button>
+                </div>
+              </div>
             ) : (
               <div className="flex flex-col gap-2 sm:flex-row">
+                {registration.checkedInAt ? null : (
+                  <Button
+                    type="button"
+                    className="h-10 w-full sm:w-auto"
+                    disabled={checkingIn}
+                    onClick={() => void submit(false)}
+                  >
+                    {checkingIn ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="size-4" />
+                    )}
+                    Check in
+                  </Button>
+                )}
                 <Button
                   type="button"
+                  variant="outline"
                   className="h-10 w-full sm:w-auto"
                   disabled={checkingIn}
-                  onClick={() => void checkIn()}
+                  onClick={() => void submit(true)}
                 >
                   {checkingIn ? (
                     <Loader2 className="size-4 animate-spin" />
                   ) : (
                     <UserRoundPlus className="size-4" />
                   )}
-                  {isJobFairCheckedIn(registration.status)
-                    ? 'Add visitor token'
-                    : 'Check in and add visitor'}
+                  Add as visitor
                 </Button>
                 <Button type="button" variant="outline" className="h-10 w-full sm:w-auto" onClick={reset}>
                   Clear

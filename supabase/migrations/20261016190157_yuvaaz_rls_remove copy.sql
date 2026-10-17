@@ -1,0 +1,2 @@
+ALTER TABLE "public"."JobFairCompany" DISABLE ROW LEVEL SECURITY;
+ALTER TABLE "public"."JobFairCompanyVisit" DISABLE ROW LEVEL SECURITY;

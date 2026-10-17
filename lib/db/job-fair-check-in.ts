@@ -19,7 +19,7 @@ import { EPIC_NUMBER_PATTERN } from '@/lib/job-fair/schema';
 import { supabase } from '@/lib/supabase/server';
 
 const COLUMNS =
-  'id, registration_no, full_name, mobile, whatsapp, age, gender, area, area_other, pincode, epic_number, qualification, course, employment_status, experience, job_types, job_type_other, status';
+  'id, registration_no, full_name, mobile, whatsapp, age, gender, area, area_other, pincode, epic_number, qualification, course, employment_status, experience, job_types, job_type_other, status, checked_in_at';
 
 type Row = {
   id: string;
@@ -40,6 +40,7 @@ type Row = {
   job_types: string[] | null;
   job_type_other: string | null;
   status: string;
+  checked_in_at: string | null;
 };
 
 function mapRow(row: Row): JobFairCheckInRecord {
@@ -62,6 +63,7 @@ function mapRow(row: Row): JobFairCheckInRecord {
     jobTypes: row.job_types ?? [],
     jobTypeOther: row.job_type_other,
     status: row.status,
+    checkedInAt: row.checked_in_at,
   };
 }
 
@@ -102,23 +104,29 @@ async function voterIdOnRoll(epicNumber: string | null): Promise<string | null> 
 export async function checkInJobFairRegistration(
   code: string,
   createdBy: string,
+  options?: { addVisitor?: boolean },
 ): Promise<{
   registration: JobFairCheckInRecord;
-  visitor: JobFairCheckInVisitor;
+  visitor: JobFairCheckInVisitor | null;
   alreadyCheckedIn: boolean;
 } | null> {
   const existing = await getJobFairCheckInByCode(code);
   if (!existing) return null;
 
-  const alreadyCheckedIn = existing.status !== 'registered';
+  const alreadyCheckedIn = Boolean(existing.checkedInAt);
   let registration = existing;
 
   if (!alreadyCheckedIn) {
+    const now = new Date().toISOString();
     const { data, error } = await supabase
       .from('JobFairRegistration')
-      .update({ status: 'attended', updated_at: new Date().toISOString() })
+      .update({
+        checked_in_at: now,
+        updated_at: now,
+        ...(existing.status === 'registered' ? { status: 'attended' } : {}),
+      })
       .eq('id', existing.id)
-      .eq('status', 'registered')
+      .is('checked_in_at', null)
       .select(COLUMNS)
       .maybeSingle();
     throwOnSupabaseError(error, 'Failed to check in registration');
@@ -127,6 +135,10 @@ export async function checkInJobFairRegistration(
     } else {
       registration = (await getJobFairCheckInByCode(code)) ?? existing;
     }
+  }
+
+  if (!options?.addVisitor) {
+    return { registration, alreadyCheckedIn, visitor: null };
   }
 
   const visitor = await findOrCreateVisitor({

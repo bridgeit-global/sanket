@@ -952,7 +952,7 @@ export async function getJobFairStats(todayYmd: string): Promise<JobFairStats> {
         count(*) FILTER (
           WHERE created_at >= ${istDayStartUtc(todayYmd)}::timestamp
         )::int AS today,
-        count(*) FILTER (WHERE status <> 'registered')::int AS checked_in,
+        count(*) FILTER (WHERE checked_in_at IS NOT NULL)::int AS checked_in,
         count(resume_storage_path)::int AS with_resume
       FROM "JobFairRegistration"
       WHERE event_code = ${JOB_FAIR_EVENT.code}
@@ -1028,9 +1028,8 @@ type JobFairActivityRow = {
   full_name: string;
   area: string;
   area_other: string | null;
-  status: string;
   created_at: string;
-  updated_at: string;
+  checked_in_at: string | null;
 };
 
 type ActivitySets = {
@@ -1041,7 +1040,7 @@ type ActivitySets = {
 };
 
 const ACTIVITY_COLUMNS =
-  'registration_no, full_name, area, area_other, status, created_at, updated_at';
+  'registration_no, full_name, area, area_other, created_at, checked_in_at';
 
 function makeActivitySets(): ActivitySets {
   return {
@@ -1108,8 +1107,7 @@ function draftDisplayName(payload: unknown): string {
 /**
  * Job fair activity for the dashboard: all-time and today registrations and
  * open drafts, plus distinct registrations created or checked in since Monday
- * 00:00 IST. A check-in is any status other than `registered`; its time is
- * `updated_at` from the check-in.
+ * 00:00 IST. A check-in is a row with `checked_in_at` set at the venue desk.
  */
 export async function getJobFairActivityStats(): Promise<JobFairActivityStats> {
   const weekStart = startOfWeekIST();
@@ -1149,8 +1147,8 @@ export async function getJobFairActivityStats(): Promise<JobFairActivityStats> {
             .from('JobFairRegistration')
             .select(ACTIVITY_COLUMNS)
             .eq('event_code', JOB_FAIR_EVENT.code)
-            .neq('status', 'registered')
-            .gte('updated_at', weekIso)
+            .not('checked_in_at', 'is', null)
+            .gte('checked_in_at', weekIso)
             .order('registration_no')
             .range(from, to),
       ),
@@ -1234,8 +1232,7 @@ export async function getJobFairActivityStats(): Promise<JobFairActivityStats> {
       fullName: row.full_name,
     };
     const createdAt = parseInstant(row.created_at);
-    const checkedInAt =
-      row.status !== 'registered' ? parseInstant(row.updated_at) : null;
+    const checkedInAt = row.checked_in_at ? parseInstant(row.checked_in_at) : null;
     const area = areaLabel(row);
     let areaSets = perArea.get(area);
     if (!areaSets) {

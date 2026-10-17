@@ -48,7 +48,10 @@ export async function POST(request: NextRequest) {
     const { session, error } = await requireJobFairCheckInAccess();
     if (error || !session) return error;
 
-    const body = (await request.json().catch(() => null)) as { code?: unknown } | null;
+    const body = (await request.json().catch(() => null)) as {
+      code?: unknown;
+      addVisitor?: unknown;
+    } | null;
     const code = readCode(typeof body?.code === 'string' ? body.code : null);
     if (!code) {
       return NextResponse.json(
@@ -57,7 +60,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const result = await checkInJobFairRegistration(code, session.user.id);
+    const result = await checkInJobFairRegistration(code, session.user.id, {
+      addVisitor: body?.addVisitor === true,
+    });
     if (!result) {
       return NextResponse.json(
         { error: `No registration found for ${code}.` },
