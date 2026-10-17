@@ -4,6 +4,7 @@ import { auth } from '@/app/(auth)/auth';
 import { throwOnSupabaseError } from '@/lib/db/errors';
 import { supabase } from '@/lib/supabase/server';
 import { getTodayDateStringIST } from '@/lib/ist-date';
+import { punctualityStatus } from './duty';
 import { normalizeAttendanceQrToken } from './qr-token';
 import type { AttendanceLog, AttendanceProfile, AttendanceSite, AttendancePunchMode, LeaveRequest, LeaveStatus } from './types';
 
@@ -90,6 +91,7 @@ function profileSummary(profile: AttendanceProfile | undefined) {
   return {
     full_name: profile.full_name,
     department: profile.department,
+    role: profile.role,
     work_type: profile.work_type,
   };
 }
@@ -196,7 +198,7 @@ export async function createPunch({
         distance_meters: null,
         is_ip_valid: true,
         is_geofence_valid: false,
-        status: 'on_time',
+        status: punctualityStatus(),
         notes: 'Field location',
       }
       : {
@@ -220,7 +222,7 @@ export async function createPunch({
 
   const distance = distanceInMeters(latitude, longitude, Number(site.latitude), Number(site.longitude));
   const isGeofenceValid = distance <= Number(site.geofence_radius_meters);
-  const status = isGeofenceValid ? 'on_time' : 'pending_review';
+  const status = isGeofenceValid ? punctualityStatus() : 'pending_review';
 
   if (site.type === 'office' && !isGeofenceValid) {
     throw new Error(`Office verification failed. Move within ${site.geofence_radius_meters}m of the entrance.`);

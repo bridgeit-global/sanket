@@ -44,7 +44,7 @@ export type LeaveRequest = {
   reviewed_by: string | null;
   reviewed_at: string | null;
   created_at: string;
-  profile?: Pick<AttendanceProfile, 'full_name' | 'department' | 'work_type'> | null;
+  profile?: Pick<AttendanceProfile, 'full_name' | 'department' | 'work_type' | 'role'> | null;
 };
 
 export type AttendanceLog = {
@@ -63,5 +63,5 @@ export type AttendanceLog = {
   status: AttendanceStatus;
   notes: string | null;
   site?: Pick<AttendanceSite, 'name' | 'type'>;
-  profile?: Pick<AttendanceProfile, 'full_name' | 'department' | 'work_type'> | null;
+  profile?: Pick<AttendanceProfile, 'full_name' | 'department' | 'work_type' | 'role'> | null;
 };

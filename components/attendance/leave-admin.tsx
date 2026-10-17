@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { TablePagination, usePagination } from '@/components/table-pagination';
 import { formatDisplayDateIST, formatDisplayDateTimeIST } from '@/lib/ist-date';
 import { cn } from '@/lib/utils';
+import { attendanceRoleLabel } from '@/lib/attendance/duty';
 import type { LeaveRequest, LeaveStatus } from '@/lib/attendance/types';
 import { AttendanceShell } from './attendance-shell';
 
@@ -196,7 +197,7 @@ export function AttendanceLeaveAdmin({ initialData }: { initialData: { leaves: L
                               <StatusPill status={leave.status} />
                             </div>
                             <p className="mt-0.5 text-xs text-muted-foreground">
-                              {leave.profile?.department || 'Workforce'}
+                              {attendanceRoleLabel(leave.profile?.role)}
                             </p>
                           </div>
                         </div>
@@ -251,7 +252,7 @@ export function AttendanceLeaveAdmin({ initialData }: { initialData: { leaves: L
                                 <PersonMark name={name} />
                                 <div className="min-w-0">
                                   <p className="truncate font-medium">{name}</p>
-                                  <p className="truncate text-xs text-muted-foreground">{leave.profile?.department || 'Workforce'}</p>
+                                  <p className="truncate text-xs text-muted-foreground">{attendanceRoleLabel(leave.profile?.role)}</p>
                                 </div>
                               </div>
                             </td>

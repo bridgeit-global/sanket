@@ -5,7 +5,7 @@ import { BrowserCodeReader, BrowserMultiFormatReader } from '@zxing/browser';
 import { Camera, CheckCircle2, LocateFixed, Radio, ScanLine } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { normalizeAttendanceQrToken } from '@/lib/attendance/qr-token';
+import { isAttendanceQrToken, normalizeAttendanceQrToken } from '@/lib/attendance/qr-token';
 import { formatDisplayDateTimeIST } from '@/lib/ist-date';
 import { AttendanceShell } from './attendance-shell';
 
@@ -166,8 +166,9 @@ export function AttendanceScanner({
             video,
             (result) => {
               if (cancelled || ticket !== runId || !result) return;
-              setToken(normalizeAttendanceQrToken(result.getText()));
-              setMessage('QR detected. Ready to submit.');
+              const nextToken = normalizeAttendanceQrToken(result.getText());
+              setToken(nextToken);
+              if (isAttendanceQrToken(nextToken)) setMessage('QR detected. Marking present…');
             },
           );
           if (cancelled || document.hidden || ticket !== runId) {
@@ -219,7 +220,15 @@ export function AttendanceScanner({
           : { token, mode: 'clock_in', latitude: location.lat, longitude: location.lng }),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Attendance could not be recorded.');
+      if (!response.ok) {
+        const errorText = data.error || 'Attendance could not be recorded.';
+        if (String(errorText).toLowerCase().includes('already marked present')) {
+          setSuccess({ clock_in: new Date().toISOString() });
+          setMessage('You are already marked present for today.');
+          return;
+        }
+        throw new Error(errorText);
+      }
       navigator.vibrate?.([100, 50, 100]);
       setSuccess(data.log);
       setMessage('Attendance recorded successfully.');
@@ -230,6 +239,16 @@ export function AttendanceScanner({
       setBusy(false);
     }
   };
+
+  const autoToken = useRef('');
+
+  useEffect(() => {
+    if (method !== 'qr' || success || busy) return;
+    if (!isAttendanceQrToken(token) || !location) return;
+    if (autoToken.current === token) return;
+    autoToken.current = token;
+    void submit();
+  }, [method, token, location, success, busy]);
 
   const confirmedAt = success?.clock_in;
   const gpsLabel = gpsState === 'ready' && location
@@ -253,7 +272,7 @@ export function AttendanceScanner({
             <p className="mt-0.5 text-xs text-muted-foreground sm:mt-1 sm:text-sm">
               {method === 'field'
                 ? 'Use this when you work in the field and do not come to the office. Your current location is saved with the attendance mark.'
-                : 'Camera and GPS stay on only while this screen is open.'}
+                : 'Point the camera at the site QR code. Attendance is marked automatically.'}
             </p>
           </div>
           <div className="grid shrink-0 grid-cols-2 rounded-xl bg-muted p-1">

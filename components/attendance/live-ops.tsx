@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { TablePagination, usePagination } from '@/components/table-pagination';
 import { formatDisplayDateIST, formatDisplayTimeIST, getTodayDateStringIST } from '@/lib/ist-date';
 import { cn } from '@/lib/utils';
+import { attendanceRoleLabel, effectiveAttendanceStatus } from '@/lib/attendance/duty';
 import type { AttendanceLog, AttendanceProfile, AttendanceSite, AttendanceStatus } from '@/lib/attendance/types';
 import { AttendanceShell } from './attendance-shell';
 
@@ -246,7 +247,7 @@ export function AttendanceLiveOps({ initialData }: { initialData: LiveData }) {
                                 <StatusPill className={shift.className}>{shift.label}</StatusPill>
                               </div>
                               <p className="mt-0.5 break-words text-xs text-muted-foreground">
-                                {log.profile?.department || 'Workforce'} · {siteLabel(log)}
+                                {attendanceRoleLabel(log.profile?.role)} · {siteLabel(log)}
                               </p>
                             </div>
                           </div>
@@ -257,7 +258,7 @@ export function AttendanceLiveOps({ initialData }: { initialData: LiveData }) {
                             </div>
                             <div>
                               <dt className="text-xs text-muted-foreground">Status</dt>
-                              <dd className="capitalize">{statusLabel(log.status)}</dd>
+                              <dd className="capitalize">{statusLabel(effectiveAttendanceStatus(log))}</dd>
                             </div>
                             <div className="col-span-2">
                               <dt className="text-xs text-muted-foreground">Present</dt>
@@ -290,7 +291,7 @@ export function AttendanceLiveOps({ initialData }: { initialData: LiveData }) {
                                   <PersonMark name={name} />
                                   <div className="min-w-0">
                                     <p className="truncate font-medium">{name}</p>
-                                    <p className="truncate text-xs text-muted-foreground">{log.profile?.department || 'Workforce'}</p>
+                                    <p className="truncate text-xs text-muted-foreground">{attendanceRoleLabel(log.profile?.role)}</p>
                                   </div>
                                 </div>
                               </td>
@@ -299,7 +300,7 @@ export function AttendanceLiveOps({ initialData }: { initialData: LiveData }) {
                                 <p className="text-xs text-muted-foreground">{formatDisplayDateIST(log.date)}</p>
                               </td>
                               <td className="px-3 py-3">
-                                <StatusPill className={statusClass(log.status)}>{statusLabel(log.status)}</StatusPill>
+                                <StatusPill className={statusClass(effectiveAttendanceStatus(log))}>{statusLabel(effectiveAttendanceStatus(log))}</StatusPill>
                               </td>
                               <td className="whitespace-nowrap px-3 py-3">{log.clock_in ? formatDisplayTimeIST(log.clock_in) : '—'}</td>
                               <td className="px-3 py-3">

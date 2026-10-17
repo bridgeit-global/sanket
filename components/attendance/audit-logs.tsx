@@ -10,6 +10,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '
 import { TablePagination, usePagination } from '@/components/table-pagination';
 import { formatDisplayDateIST, formatDisplayTimeIST, getTodayDateStringIST } from '@/lib/ist-date';
 import { cn } from '@/lib/utils';
+import { attendanceRoleLabel, effectiveAttendanceStatus } from '@/lib/attendance/duty';
 import type { AttendanceLog, AttendanceStatus } from '@/lib/attendance/types';
 import { AttendanceShell } from './attendance-shell';
 
@@ -114,8 +115,8 @@ export function AttendanceAuditLogs({ initialData }: { initialData: { logs: Audi
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return dated.filter((log) => {
-      if (filter === 'on_time' && log.status !== 'on_time') return false;
-      if (filter === 'late' && log.status !== 'late') return false;
+      if (filter === 'on_time' && effectiveAttendanceStatus(log) !== 'on_time') return false;
+      if (filter === 'late' && effectiveAttendanceStatus(log) !== 'late') return false;
       if (filter === 'review' && !needsReview(log)) return false;
       if (!needle) return true;
       const haystack = [log.profile?.full_name, log.profile?.department, log.site?.name, log.status]
@@ -160,7 +161,7 @@ export function AttendanceAuditLogs({ initialData }: { initialData: { logs: Audi
         log.date,
         log.profile?.full_name || '',
         siteLabel(log),
-        log.status,
+        String(effectiveAttendanceStatus(log)),
         log.clock_in || '',
         log.distance_meters == null ? '' : String(log.distance_meters),
       ]),
@@ -229,8 +230,9 @@ export function AttendanceAuditLogs({ initialData }: { initialData: { logs: Audi
                 <DmyDateInput
                   aria-label="Date"
                   className="min-h-12 w-full text-base"
+                  max={today}
                   value={date}
-                  onValueChange={setDate}
+                  onValueChange={(next) => setDate(next && next > today ? today : next)}
                 />
               </label>
             </div>
@@ -277,7 +279,7 @@ export function AttendanceAuditLogs({ initialData }: { initialData: { logs: Audi
                           <div className="min-w-0 flex-1">
                             <div className="flex items-start justify-between gap-2">
                               <p className="break-words font-medium">{name}</p>
-                              <StatusPill className={statusClass(log.status)}>{statusLabel(log.status)}</StatusPill>
+                              <StatusPill className={statusClass(effectiveAttendanceStatus(log))}>{statusLabel(effectiveAttendanceStatus(log))}</StatusPill>
                             </div>
                             <p className="mt-0.5 break-words text-xs text-muted-foreground">
                               {formatDisplayDateIST(log.date)} · {siteLabel(log)}
@@ -336,7 +338,7 @@ export function AttendanceAuditLogs({ initialData }: { initialData: { logs: Audi
                                 <PersonMark name={name} />
                                 <div className="min-w-0">
                                   <p className="truncate font-medium">{name}</p>
-                                  <p className="truncate text-xs text-muted-foreground">{log.profile?.department || 'Workforce'}</p>
+                                  <p className="truncate text-xs text-muted-foreground">{attendanceRoleLabel(log.profile?.role)}</p>
                                 </div>
                               </div>
                             </td>
@@ -345,7 +347,7 @@ export function AttendanceAuditLogs({ initialData }: { initialData: { logs: Audi
                               <p className="text-xs text-muted-foreground">{formatDisplayDateIST(log.date)}</p>
                             </td>
                             <td className="px-3 py-3">
-                              <StatusPill className={statusClass(log.status)}>{statusLabel(log.status)}</StatusPill>
+                              <StatusPill className={statusClass(effectiveAttendanceStatus(log))}>{statusLabel(effectiveAttendanceStatus(log))}</StatusPill>
                             </td>
                             <td className="whitespace-nowrap px-3 py-3">{log.clock_in ? formatDisplayTimeIST(log.clock_in) : '—'}</td>
                             <td className="whitespace-nowrap px-3 py-3">{log.distance_meters ? `${Math.round(log.distance_meters)} m` : '—'}</td>
@@ -378,13 +380,13 @@ export function AttendanceAuditLogs({ initialData }: { initialData: { logs: Audi
               <SheetHeader className="pr-8 text-left">
                 <SheetTitle className="break-words">{selected.profile?.full_name || 'Employee'}</SheetTitle>
                 <SheetDescription className="break-words">
-                  {selected.profile?.department || 'Workforce'}
+                  {attendanceRoleLabel(selected.profile?.role)}
                   {selected.profile?.work_type ? ` · ${selected.profile.work_type}` : ''}
                 </SheetDescription>
               </SheetHeader>
               <div className="mt-6 space-y-6">
                 <div className="flex flex-wrap items-center gap-2">
-                  <StatusPill className={statusClass(selected.status)}>{statusLabel(selected.status)}</StatusPill>
+                  <StatusPill className={statusClass(effectiveAttendanceStatus(selected))}>{statusLabel(effectiveAttendanceStatus(selected))}</StatusPill>
                   <span className="text-sm text-muted-foreground">{formatDisplayDateIST(selected.date)}</span>
                 </div>
                 <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -417,7 +419,7 @@ export function AttendanceAuditLogs({ initialData }: { initialData: { logs: Audi
                       >
                         <span className="flex items-center justify-between gap-2">
                           <span className="font-medium">{formatDisplayDateIST(log.date)}</span>
-                          <StatusPill className={statusClass(log.status)}>{statusLabel(log.status)}</StatusPill>
+                          <StatusPill className={statusClass(effectiveAttendanceStatus(log))}>{statusLabel(effectiveAttendanceStatus(log))}</StatusPill>
                         </span>
                         <span className="break-words text-xs text-muted-foreground">
                           {siteLabel(log)} · {log.clock_in ? `Present ${formatDisplayTimeIST(log.clock_in)}` : 'Not marked'}

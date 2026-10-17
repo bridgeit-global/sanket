@@ -9,6 +9,7 @@ import { TablePagination, usePagination } from '@/components/table-pagination';
 import { formatDisplayDateIST, formatDisplayDateTimeIST, formatDisplayTimeIST, formatYmd, getCalendarYmd, getTodayDateStringIST } from '@/lib/ist-date';
 import { cn } from '@/lib/utils';
 import { AttendanceShell, SectionTitle } from './attendance-shell';
+import { attendanceRoleLabel, DUTY_WINDOW_LABEL, effectiveAttendanceStatus } from '@/lib/attendance/duty';
 import type { AttendanceLog, LeaveRequest, LeaveStatus } from '@/lib/attendance/types';
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -139,7 +140,7 @@ export function AttendanceDashboard({ initialData }: { initialData: any }) {
           <div className="min-w-0">
             <p className="text-sm text-muted-foreground">Good day</p>
             <h1 className="break-words text-2xl font-bold">{data.profile?.full_name || 'Employee'}</h1>
-            <p className="mt-1 text-sm text-muted-foreground">{data.profile?.department || 'Workforce attendance'}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{attendanceRoleLabel(data.profile?.role)}</p>
           </div>
           <Button variant="outline" onClick={refresh} className="min-h-12 w-full sm:w-auto">
             <RefreshCw className="mr-2 size-4" />Refresh
@@ -148,12 +149,20 @@ export function AttendanceDashboard({ initialData }: { initialData: any }) {
 
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <Card className="border-primary/30 bg-primary/5">
-            <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Today&apos;s shift</CardTitle></CardHeader>
+            <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Today&apos;s shift · {DUTY_WINDOW_LABEL}</CardTitle></CardHeader>
             <CardContent>
               <div className="flex items-end justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="text-3xl font-bold">{todayLog?.clock_in ? 'Present' : 'Not marked'}</div>
-                  <p className="mt-1 text-sm text-muted-foreground">{todayLog?.clock_in ? `Present at ${formatDisplayTimeIST(todayLog.clock_in)}` : 'Scan to mark present'}</p>
+                  <div className="text-3xl font-bold">
+                    {!todayLog?.clock_in
+                      ? 'Not marked'
+                      : effectiveAttendanceStatus(todayLog) === 'late'
+                        ? 'Late'
+                        : effectiveAttendanceStatus(todayLog) === 'on_time'
+                          ? 'On time'
+                          : 'Present'}
+                  </div>
+                  <p className="mt-1 text-sm text-muted-foreground">{todayLog?.clock_in ? `Present at ${formatDisplayTimeIST(todayLog.clock_in)}` : 'Scan the QR code to mark present'}</p>
                 </div>
                 <Clock3 className="size-8 shrink-0 text-primary" />
               </div>
@@ -252,7 +261,7 @@ export function AttendanceDashboard({ initialData }: { initialData: any }) {
                 const dayLogs = logsByDate.get(cell.key) ?? [];
                 const onLeave = leavesOnDate(leaveRequests, cell.key).some((request) => request.status === 'approved');
                 const label = dayLogs[0]
-                  ? dayLogs.map((log) => log.status.replaceAll('_', ' ')).join(', ')
+                  ? dayLogs.map((log) => String(effectiveAttendanceStatus(log)).replaceAll('_', ' ')).join(', ')
                   : onLeave
                     ? 'On leave'
                     : 'No punch';
@@ -283,7 +292,7 @@ export function AttendanceDashboard({ initialData }: { initialData: any }) {
                 <div className="mt-2 space-y-2">
                   {selectedLogs.map((log) => (
                     <div key={log.id} className="min-w-0 text-sm">
-                      <p className="break-words">{log.site?.name || 'Field location'} · {log.status.replaceAll('_', ' ')}</p>
+                      <p className="break-words">{log.site?.name || 'Field location'} · {String(effectiveAttendanceStatus(log)).replaceAll('_', ' ')}</p>
                       <p className="text-muted-foreground">
                         {log.clock_in ? `Present · ${formatDisplayTimeIST(log.clock_in)}` : '—'}
                       </p>
@@ -314,7 +323,7 @@ export function AttendanceDashboard({ initialData }: { initialData: any }) {
                 <div key={log.id} className="flex flex-col gap-1 border-b pb-3 last:border-0 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0">
                     <p className="font-medium">{formatDisplayDateIST(log.date)}</p>
-                    <p className="break-words text-xs text-muted-foreground">{log.site?.name || 'Field location'} · {log.status.replace('_', ' ')}</p>
+                    <p className="break-words text-xs text-muted-foreground">{log.site?.name || 'Field location'} · {String(effectiveAttendanceStatus(log)).replaceAll('_', ' ')}</p>
                   </div>
                   <p className="text-sm text-muted-foreground">{log.clock_in ? formatDisplayTimeIST(log.clock_in) : '—'}</p>
                 </div>
