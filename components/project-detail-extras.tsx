@@ -398,7 +398,7 @@ export function ProjectDetailExtras({
           >
             <DialogContent className="max-h-[90dvh] w-[calc(100%-2rem)] max-w-4xl overflow-hidden p-3 sm:max-w-4xl sm:p-6">
               <DialogHeader>
-                <DialogTitle className="truncate pr-8 text-sm sm:text-base">
+                <DialogTitle className="break-all whitespace-normal pr-8 text-sm sm:text-base">
                   {lightboxPhoto?.fileName ?? t('projects.groundMedia')}
                 </DialogTitle>
               </DialogHeader>
@@ -452,7 +452,7 @@ export function ProjectDetailExtras({
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex min-w-0 items-center gap-2">
                       <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                      <span className="truncate font-medium">{doc.fileName}</span>
+                      <span className="break-all whitespace-normal font-medium">{doc.fileName}</span>
                     </div>
                     <div className="flex shrink-0 items-center gap-1">
                       {doc.fileUrl ? (

@@ -1000,6 +1000,7 @@ export function mapRegisterEntryRow(row: Row): RegisterEntry {
     officer: toStringOrNull(row.officer),
     assignedPerson: toStringOrNull(row.assigned_person ?? row.assignedPerson),
     assignedPhone: toStringOrNull(row.assigned_phone ?? row.assignedPhone),
+    remark: toStringOrNull(row.remark),
     govFollowUpMatterId: toStringOrNull(
       row.gov_follow_up_matter_id ?? row.govFollowUpMatterId,
     ),

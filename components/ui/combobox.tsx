@@ -222,6 +222,23 @@ export function Combobox({
         }
     };
 
+    const handleInputBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+        if (containerRef.current?.contains(e.relatedTarget as Node)) {
+            return;
+        }
+        const pendingQuery = searchQuery.trim();
+        if (
+            allowCustom &&
+            pendingQuery.length > 0 &&
+            pendingQuery !== (selectedOption?.label ?? value ?? '')
+        ) {
+            onValueChange?.(pendingQuery);
+        }
+        setOpen(false);
+        setSearchQuery('');
+        setHighlightedIndex(0);
+    };
+
     return (
         <div ref={containerRef} className={cn('relative', className)}>
             <div className="relative">
@@ -232,6 +249,7 @@ export function Combobox({
                     value={open ? searchQuery : selectedOption?.label ?? value ?? ''}
                     onChange={handleInputChange}
                     onFocus={handleInputFocus}
+                    onBlur={handleInputBlur}
                     onKeyDown={handleKeyDown}
                     placeholder={placeholder}
                     disabled={disabled}
@@ -242,6 +260,7 @@ export function Combobox({
                         !selectedOption && open && 'text-muted-foreground',
                         inputClassName,
                     )}
+                    style={{ alignItems: 'center' }}
                     role="combobox"
                     aria-expanded={open}
                     aria-controls={listboxId}
@@ -269,11 +288,11 @@ export function Combobox({
                             {showCreate && (
                                 <div
                                     onClick={() => handleSelect(trimmedQuery)}
-                                    className="relative flex w-full cursor-default select-none items-center gap-1 rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
+                                    className="relative flex w-full cursor-default select-none items-center gap-1 rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground text-primary font-medium"
                                     role="option"
                                     aria-selected={false}
                                 >
-                                    <span className="truncate">{trimmedQuery}</span>
+                                    <span className="break-all whitespace-normal">+ Add &ldquo;{trimmedQuery}&rdquo;</span>
                                 </div>
                             )}
                             {filteredOptions.map((option, index) => (
@@ -281,6 +300,9 @@ export function Combobox({
                                     key={`${option.value}__${index}`}
                                     ref={(el) => {
                                         optionRefs.current[index] = el;
+                                    }}
+                                    onMouseDown={(e) => {
+                                        e.preventDefault();
                                     }}
                                     onClick={() => {
                                         if (!option.disabled) handleSelect(option.value);

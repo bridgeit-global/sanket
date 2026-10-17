@@ -82,7 +82,7 @@ export function AdmFundSummaryRow({ fund, onSelect }: AdmFundSummaryRowProps) {
                   onKeyDown={(e) => e.stopPropagation()}
                 >
                   <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                  <span className="min-w-0 flex-1 truncate">{name}</span>
+                  <span className="min-w-0 flex-1 break-all whitespace-normal">{name}</span>
                   <FilePreviewButton fileUrl={href} fileName={name} />
                 </div>
               );

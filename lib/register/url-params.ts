@@ -3,6 +3,8 @@ export const REGISTER_URL_PARAMS = {
   endDate: 'endDate',
   projectIds: 'projectIds',
   projectStatus: 'projectStatus',
+  documentType: 'documentType',
+  assignedPerson: 'assignedPerson',
   search: 'search',
   page: 'page',
   limit: 'limit',
@@ -16,6 +18,8 @@ export type RegisterFilterState = {
   endDate: string;
   projectIds: string[];
   projectStatus: 'all' | 'Concept' | 'Proposal' | 'In Progress' | 'Completed';
+  documentType: string;
+  assignedPerson: string;
   search: string;
   page: number;
   limit: number;
@@ -45,6 +49,8 @@ export function parseRegisterFiltersFromSearchParams(
     endDate: params.get(REGISTER_URL_PARAMS.endDate) ?? '',
     projectIds: projectIdsRaw ? projectIdsRaw.split(',').filter(Boolean) : [],
     projectStatus: projectStatus as RegisterFilterState['projectStatus'],
+    documentType: params.get(REGISTER_URL_PARAMS.documentType) || 'all',
+    assignedPerson: params.get(REGISTER_URL_PARAMS.assignedPerson) || 'all',
     search: params.get(REGISTER_URL_PARAMS.search) ?? '',
     page: parseRegisterPageParam(params.get(REGISTER_URL_PARAMS.page)),
     limit: parseRegisterLimitParam(params.get(REGISTER_URL_PARAMS.limit)),
@@ -74,6 +80,16 @@ export function buildRegisterSearchParams(
     REGISTER_URL_PARAMS.projectStatus,
     state.projectStatus,
     !state.projectStatus || state.projectStatus === 'all',
+  );
+  setOrDelete(
+    REGISTER_URL_PARAMS.documentType,
+    state.documentType,
+    !state.documentType || state.documentType === 'all',
+  );
+  setOrDelete(
+    REGISTER_URL_PARAMS.assignedPerson,
+    state.assignedPerson,
+    !state.assignedPerson || state.assignedPerson === 'all',
   );
   setOrDelete(REGISTER_URL_PARAMS.search, state.search);
 

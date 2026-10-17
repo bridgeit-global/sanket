@@ -107,7 +107,7 @@ export function ProjectPhotoGallery({
                 />
               </button>
               <div className="flex items-center justify-between gap-2 border-t border-border px-2 py-1.5">
-                <p className="min-w-0 truncate text-xs text-muted-foreground">
+                <p className="min-w-0 break-all whitespace-normal text-xs text-muted-foreground">
                   {photo.fileName}
                 </p>
                 <Button

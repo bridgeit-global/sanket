@@ -103,6 +103,10 @@ export async function PUT(
         body.assignedPhone !== undefined
           ? body.assignedPhone || undefined
           : entry.assignedPhone ?? undefined,
+      remark:
+        body.remark !== undefined
+          ? body.remark || undefined
+          : entry.remark ?? undefined,
     });
     if (!validation.success) {
       const firstError = Object.values(validation.errors)[0];
@@ -126,6 +130,9 @@ export async function PUT(
     }
     if (body.assignedPhone !== undefined) {
       updateData.assignedPhone = validation.data.assignedPhone || null;
+    }
+    if (body.remark !== undefined) {
+      updateData.remark = validation.data.remark || null;
     }
     if (body.documentType !== undefined) {
       const requestedType = String(body.documentType ?? '').trim();

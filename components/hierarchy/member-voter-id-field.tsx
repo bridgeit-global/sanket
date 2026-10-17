@@ -135,13 +135,13 @@ export function MemberVoterIdField({
             {member.linkedVoter ? (
               <Link
                 href={`/modules/voter/${member.linkedVoter.epicNumber}`}
-                className="truncate hover:underline"
+                className="break-all whitespace-normal hover:underline"
                 onClick={(e) => e.stopPropagation()}
               >
                 {member.epicNumber}
               </Link>
             ) : (
-              <span className="truncate">{member.epicNumber}</span>
+              <span className="break-all whitespace-normal">{member.epicNumber}</span>
             )}
           </span>
         ) : null}

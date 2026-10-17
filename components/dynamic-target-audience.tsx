@@ -172,7 +172,7 @@ export function DynamicTargetAudience({
                                         <SelectItem key={option.value} value={option.value}>
                                             <div className="flex items-center gap-2">
                                                 <span className="font-mono text-xs">{option.value}</span>
-                                                <span className="truncate">{option.label}</span>
+                                                <span className="break-all whitespace-normal">{option.label}</span>
                                             </div>
                                         </SelectItem>
                                     ))}
@@ -195,7 +195,7 @@ export function DynamicTargetAudience({
                                         >
                                             <div className="flex items-center gap-2">
                                                 <span className="font-mono text-xs">{option.value}</span>
-                                                <span className="truncate">{option.label}</span>
+                                                <span className="break-all whitespace-normal">{option.label}</span>
                                             </div>
                                         </button>
                                     ))}

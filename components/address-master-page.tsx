@@ -58,7 +58,7 @@ export function AddressMasterPage() {
           <Button variant="outline" className="w-full sm:w-auto" asChild>
             <Link href={backHref}>
               <ArrowLeft className="mr-2 size-4 shrink-0" />
-              <span className="truncate">
+              <span className="break-all whitespace-normal">
                 {t('letterGeneration.addresses.backToLetterGeneration')}
               </span>
             </Link>

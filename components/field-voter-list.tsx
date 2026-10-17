@@ -90,7 +90,7 @@ export function FieldVoterList({ voters, loading, onVoterSelect }: FieldVoterLis
           >
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
-                <span className="font-medium truncate">{voter.fullName}</span>
+                <span className="font-medium break-all whitespace-normal">{voter.fullName}</span>
                 {voter.isProfiled ? (
                   <Badge variant="default" className="bg-green-100 text-green-800 hover:bg-green-100">
                     <CheckCircle className="h-3 w-3 mr-1" />

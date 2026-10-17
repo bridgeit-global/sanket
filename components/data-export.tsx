@@ -747,7 +747,7 @@ export function DataExport() {
                     variant="outline"
                     className="w-full justify-between h-10"
                   >
-                    <span className="truncate">
+                    <span className="break-all whitespace-normal">
                       {selectedColumns.length === DEFAULT_COLUMNS.length
                         ? 'All Columns Selected'
                         : `${selectedColumns.length} of ${DEFAULT_COLUMNS.length} columns selected`}
@@ -937,7 +937,7 @@ export function DataExport() {
                     {/* Job Info */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium truncate">
+                        <span className="font-medium break-all whitespace-normal">
                           {job.fileName || `${job.type}_export.${job.format}`}
                         </span>
                         <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground uppercase">

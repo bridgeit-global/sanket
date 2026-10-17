@@ -16,7 +16,7 @@ export function MissingFieldRow({ label, actionLabel, onAction }: MissingFieldRo
     <div className="flex w-full min-w-0 items-center justify-between gap-2 rounded-md border border-amber-400 bg-amber-50 px-2 py-1 dark:border-amber-700 dark:bg-amber-950/50">
       <span className="inline-flex min-w-0 items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-amber-950 dark:text-amber-100">
         <AlertCircle className="size-3 shrink-0" aria-hidden />
-        <span className="truncate">{label}</span>
+        <span className="break-all whitespace-normal">{label}</span>
       </span>
       {actionLabel && onAction ? (
         <Button

@@ -1,8 +1,5 @@
 import { z } from 'zod';
-import {
-  isValidIndianMobile,
-  normalizeIndianMobileDigits,
-} from '@/lib/indian-mobile';
+import { normalizeIndianMobileDigits } from '@/lib/indian-mobile';
 import { normalizeProjectGeoSelection } from '@/lib/projects/hierarchy-geo';
 
 // Project form validation
@@ -161,6 +158,7 @@ export const REGISTER_ENTRY_FIELD_LIMITS = {
   officer: 255,
   assignedPerson: 255,
   assignedPhone: 20,
+  remark: 500,
 } as const;
 
 // Register entry form validation
@@ -220,9 +218,16 @@ export const registerEntryFormSchema = z.object({
       const trimmed = value?.trim() ?? '';
       return trimmed ? normalizeIndianMobileDigits(trimmed) : undefined;
     })
-    .refine((value) => value === undefined || isValidIndianMobile(value), {
+    .refine((value) => value === undefined || /^\d{10}$/.test(value), {
       message: 'Enter a valid 10-digit Indian mobile number',
     }),
+  remark: z
+    .string()
+    .max(
+      REGISTER_ENTRY_FIELD_LIMITS.remark,
+      `Maximum ${REGISTER_ENTRY_FIELD_LIMITS.remark} characters`,
+    )
+    .optional(),
 });
 
 export type RegisterEntryFormData = z.infer<typeof registerEntryFormSchema>;
