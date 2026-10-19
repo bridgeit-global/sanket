@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -25,15 +25,18 @@ import {
   FILE_PREVIEW_ZOOM_MIN,
   FILE_PREVIEW_ZOOM_STEP,
   canPreviewInline,
-  clampFilePreviewZoom,
-  clampFilePreviewZoomContinuous,
   downloadFileFromUrl,
   isImageFile,
   isPdfFile,
   needsCanvasPdfPreview,
-  touchDistance,
 } from '@/lib/file-preview';
-import { cn } from '@/lib/utils';
+import {
+  TransformComponent,
+  TransformWrapper,
+  useControls,
+  useTransformComponent,
+  type ReactZoomPanPinchContextState,
+} from 'react-zoom-pan-pinch';
 
 export type FilePreviewDialogProps = {
   open: boolean;
@@ -45,6 +48,136 @@ export type FilePreviewDialogProps = {
   sourceUrl?: string | null;
 };
 
+function selectPreviewScale(context: ReactZoomPanPinchContextState) {
+  return context.state.scale;
+}
+
+function ImageZoomControls() {
+  const { zoomIn, zoomOut, resetTransform } = useControls();
+  const scale = useTransformComponent(selectPreviewScale);
+  const zoomPercent = Math.round(scale * 100);
+
+  return (
+    <div className="mr-1 flex items-center gap-0.5 rounded-md border bg-background p-0.5">
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8"
+        aria-label="Zoom out"
+        title="Zoom out"
+        disabled={scale <= FILE_PREVIEW_ZOOM_MIN + 0.001}
+        onClick={() => {
+          void zoomOut(FILE_PREVIEW_ZOOM_STEP);
+        }}
+      >
+        <Minus className="h-4 w-4" />
+      </Button>
+      <span
+        className="min-w-[3rem] text-center text-xs font-medium tabular-nums text-muted-foreground"
+        aria-live="polite"
+      >
+        {zoomPercent}%
+      </span>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8"
+        aria-label="Zoom in"
+        title="Zoom in"
+        disabled={scale >= FILE_PREVIEW_ZOOM_MAX - 0.001}
+        onClick={() => {
+          void zoomIn(FILE_PREVIEW_ZOOM_STEP);
+        }}
+      >
+        <Plus className="h-4 w-4" />
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8"
+        aria-label="Reset zoom"
+        title="Reset zoom"
+        disabled={Math.abs(scale - 1) < 0.001}
+        onClick={() => {
+          void resetTransform();
+        }}
+      >
+        <RotateCcw className="h-4 w-4" />
+      </Button>
+    </div>
+  );
+}
+
+function MobilePdfStage({
+  fileUrl,
+  fileName,
+  open,
+  onError,
+  onOpenExternally,
+}: {
+  fileUrl: string;
+  fileName: string;
+  open: boolean;
+  onError: () => void;
+  onOpenExternally: () => void;
+}) {
+  return (
+    <TransformWrapper
+      key={`${open ? 'open' : 'closed'}:${fileUrl}`}
+      initialScale={1}
+      minScale={0.8}
+      maxScale={4}
+      centerOnInit={false}
+      limitToBounds
+      autoAlignment={{ sizeX: 0, sizeY: 0 }}
+      pinch={{ disabled: false, step: 5 }}
+      doubleClick={{ disabled: false, mode: 'toggle' }}
+      wheel={{ disabled: false }}
+      panning={{ disabled: false }}
+    >
+      <TransformComponent
+        wrapperClass="!h-full !w-full touch-none"
+        wrapperStyle={{ touchAction: 'none', overscrollBehavior: 'none' }}
+        wrapperProps={{
+          onTouchMove: (event) => {
+            event.stopPropagation();
+          },
+        }}
+        contentClass="flex !w-full flex-col items-center justify-start"
+        contentStyle={{ touchAction: 'none', willChange: 'transform' }}
+      >
+        <div className="w-full touch-none" style={{ touchAction: 'none' }}>
+          <MobilePdfCanvas
+            fileUrl={fileUrl}
+            fileName={fileName}
+            onOpenExternally={onOpenExternally}
+            onError={onError}
+          />
+        </div>
+      </TransformComponent>
+    </TransformWrapper>
+  );
+}
+
+function PdfInlineFallback({ fileUrl }: { fileUrl: string }) {
+  return (
+    <div className="p-4 text-center text-sm text-gray-400">
+      Unable to render PDF inline.{' '}
+      <a
+        href={fileUrl}
+        target="_blank"
+        rel="noreferrer"
+        className="text-pink-500 underline"
+      >
+        Download File
+      </a>
+    </div>
+  );
+}
+
 export function FilePreviewDialog({
   open,
   onOpenChange,
@@ -55,13 +188,8 @@ export function FilePreviewDialog({
   const isMobile = useIsMobile();
   const [useCanvasPdf, setUseCanvasPdf] = useState(false);
   const [pdfModeReady, setPdfModeReady] = useState(false);
+  const [pdfInlineFailed, setPdfInlineFailed] = useState(false);
   const previewIframeRef = useRef<HTMLIFrameElement>(null);
-  const zoomRootRef = useRef<HTMLDivElement>(null);
-  const zoomFactorRef = useRef(1);
-  const pinchRef = useRef<{ startDistance: number; startZoom: number } | null>(
-    null,
-  );
-  const [zoomFactor, setZoomFactor] = useState(1);
 
   useEffect(() => {
     // Decide once on the client so we never flash a dead iframe on iOS/mobile.
@@ -74,95 +202,22 @@ export function FilePreviewDialog({
     setUseCanvasPdf(needsCanvasPdfPreview() || isMobile);
   }, [isMobile, pdfModeReady]);
 
+  useEffect(() => {
+    setPdfInlineFailed(false);
+  }, [fileName, fileUrl]);
+
   const effectiveSourceUrl = sourceUrl || fileUrl;
   const previewIsImage = !!fileName && isImageFile(fileName);
   const previewIsPdf = !!fileName && isPdfFile(fileName);
   // Mobile widths + iOS/iPadOS (iframe/object PDF embedding is unsupported).
   const useMobilePdfCanvas = previewIsPdf && useCanvasPdf;
-  const canZoom =
+  const canPreview =
     open && !!fileUrl && !!fileName && canPreviewInline(fileName);
-  const zoomPercent = Math.round(zoomFactor * 100);
+  const showImageZoom = canPreview && previewIsImage && !!fileUrl;
 
-  const setZoom = useCallback((next: number, snap = false) => {
-    const clamped = snap
-      ? clampFilePreviewZoom(next)
-      : clampFilePreviewZoomContinuous(next);
-    zoomFactorRef.current = clamped;
-    setZoomFactor(clamped);
+  const handlePdfCanvasError = useCallback(() => {
+    setPdfInlineFailed(true);
   }, []);
-
-  const adjustZoom = useCallback(
-    (delta: number) => {
-      setZoom(zoomFactorRef.current + delta, true);
-    },
-    [setZoom],
-  );
-
-  const resetZoom = useCallback(() => {
-    setZoom(1, true);
-  }, [setZoom]);
-
-  useEffect(() => {
-    if (!open) {
-      resetZoom();
-    }
-  }, [open, resetZoom]);
-
-  useEffect(() => {
-    resetZoom();
-  }, [fileName, fileUrl, resetZoom]);
-
-  useLayoutEffect(() => {
-    const root = zoomRootRef.current;
-    if (!root || !canZoom) return;
-
-    const onWheel = (event: WheelEvent) => {
-      if (!(event.ctrlKey || event.metaKey)) return;
-      event.preventDefault();
-      adjustZoom(event.deltaY < 0 ? FILE_PREVIEW_ZOOM_STEP : -FILE_PREVIEW_ZOOM_STEP);
-    };
-
-    const onTouchStart = (event: TouchEvent) => {
-      if (event.touches.length !== 2) {
-        pinchRef.current = null;
-        return;
-      }
-      const distance = touchDistance(event.touches[0], event.touches[1]);
-      if (distance < 8) return;
-      pinchRef.current = {
-        startDistance: distance,
-        startZoom: zoomFactorRef.current,
-      };
-    };
-
-    const onTouchMove = (event: TouchEvent) => {
-      const pinch = pinchRef.current;
-      if (!pinch || event.touches.length !== 2) return;
-      event.preventDefault();
-      const distance = touchDistance(event.touches[0], event.touches[1]);
-      if (distance < 8 || pinch.startDistance < 8) return;
-      setZoom(pinch.startZoom * (distance / pinch.startDistance));
-    };
-
-    const endPinch = () => {
-      if (!pinchRef.current) return;
-      pinchRef.current = null;
-      setZoom(zoomFactorRef.current, true);
-    };
-
-    root.addEventListener('wheel', onWheel, { passive: false });
-    root.addEventListener('touchstart', onTouchStart, { passive: true });
-    root.addEventListener('touchmove', onTouchMove, { passive: false });
-    root.addEventListener('touchend', endPinch);
-    root.addEventListener('touchcancel', endPinch);
-    return () => {
-      root.removeEventListener('wheel', onWheel);
-      root.removeEventListener('touchstart', onTouchStart);
-      root.removeEventListener('touchmove', onTouchMove);
-      root.removeEventListener('touchend', endPinch);
-      root.removeEventListener('touchcancel', endPinch);
-    };
-  }, [adjustZoom, canZoom, setZoom]);
 
   const handleDownload = async () => {
     if (!effectiveSourceUrl || !fileName) {
@@ -214,178 +269,143 @@ export function FilePreviewDialog({
     }
   };
 
+  const header = (zoomControls?: ReactNode) => (
+    <DialogHeader className="shrink-0 gap-3 space-y-0 border-b p-4 pr-12 text-left sm:flex-row sm:items-center sm:justify-between">
+      <DialogTitle className="min-w-0 break-all whitespace-normal pr-2 text-left text-base">
+        {fileName ?? 'Document'}
+      </DialogTitle>
+      <DialogDescription className="sr-only">
+        Document preview
+      </DialogDescription>
+      <div className="flex flex-wrap items-center gap-1">
+        {zoomControls}
+        {!previewIsPdf && canPreview && !useMobilePdfCanvas && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={handlePrint}
+            title="Print"
+            aria-label="Print"
+          >
+            <Printer className="h-4 w-4" />
+          </Button>
+        )}
+        {!previewIsPdf && fileName && effectiveSourceUrl && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={handleDownload}
+            title="Download"
+            aria-label="Download"
+          >
+            <Download className="h-4 w-4" />
+          </Button>
+        )}
+      </div>
+    </DialogHeader>
+  );
+
+  const imageStage =
+    fileUrl && fileName ? (
+      <div className="flex h-full w-full items-center justify-center overflow-hidden">
+        <TransformComponent
+          wrapperClass="!h-full !w-full"
+          contentClass="flex !h-full !w-full items-center justify-center"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element -- blob/remote preview URL */}
+          <img
+            src={fileUrl}
+            alt={fileName}
+            className="max-h-full max-w-full object-contain"
+            draggable={false}
+          />
+        </TransformComponent>
+      </div>
+    ) : null;
+
+  const previewBody = (
+    <div className="min-h-0 flex-1 bg-muted/30">
+      {fileUrl && fileName && canPreviewInline(fileName) ? (
+        previewIsPdf && !pdfModeReady ? (
+          <div className="flex h-full items-center justify-center p-6 text-sm text-muted-foreground">
+            Loading PDF…
+          </div>
+        ) : useMobilePdfCanvas ? (
+          pdfInlineFailed ? (
+            <div className="flex h-full w-full items-center justify-center overflow-hidden">
+              <PdfInlineFallback fileUrl={fileUrl} />
+            </div>
+          ) : (
+            <div className="h-full w-full touch-none overflow-hidden overscroll-none">
+              <MobilePdfStage
+                fileUrl={fileUrl}
+                fileName={fileName}
+                open={open}
+                onOpenExternally={handleOpenExternally}
+                onError={handlePdfCanvasError}
+              />
+            </div>
+          )
+        ) : (
+          <div className="h-full w-full overflow-hidden">
+            <iframe
+              ref={previewIframeRef}
+              src={fileUrl}
+              title={fileName}
+              className="h-full w-full border-0"
+            />
+          </div>
+        )
+      ) : (
+        <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
+          <FileText className="h-12 w-12 text-muted-foreground opacity-50" />
+          <p className="text-sm text-muted-foreground">
+            Preview isn&apos;t available for this file type.
+          </p>
+          {fileName && effectiveSourceUrl && (
+            <Button
+              variant="outline"
+              className="w-full sm:w-auto"
+              onClick={handleDownload}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Download to view
+            </Button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         overlayClassName="z-[100]"
-        className="z-[100] flex h-[90dvh] w-[calc(100%-2rem)] max-w-5xl flex-col gap-0 p-0 sm:w-[95vw]"
+        className="z-[100] flex h-[90dvh] w-[calc(100%-2rem)] max-w-5xl flex-col gap-0 overscroll-none p-0 sm:w-[95vw]"
       >
-        <DialogHeader className="shrink-0 gap-3 space-y-0 border-b p-4 pr-12 text-left sm:flex-row sm:items-center sm:justify-between">
-          <DialogTitle className="min-w-0 break-all whitespace-normal pr-2 text-left text-base">
-            {fileName ?? 'Document'}
-          </DialogTitle>
-          <DialogDescription className="sr-only">
-            Document preview
-          </DialogDescription>
-          <div className="flex flex-wrap items-center gap-1">
-            {canZoom && (
-              <div className="mr-1 flex items-center gap-0.5 rounded-md border bg-background p-0.5">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  aria-label="Zoom out"
-                  title="Zoom out"
-                  disabled={zoomFactor <= FILE_PREVIEW_ZOOM_MIN + 0.001}
-                  onClick={() => adjustZoom(-FILE_PREVIEW_ZOOM_STEP)}
-                >
-                  <Minus className="h-4 w-4" />
-                </Button>
-                <span
-                  className="min-w-[3rem] text-center text-xs font-medium tabular-nums text-muted-foreground"
-                  aria-live="polite"
-                >
-                  {zoomPercent}%
-                </span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  aria-label="Zoom in"
-                  title="Zoom in"
-                  disabled={zoomFactor >= FILE_PREVIEW_ZOOM_MAX - 0.001}
-                  onClick={() => adjustZoom(FILE_PREVIEW_ZOOM_STEP)}
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  aria-label="Reset zoom"
-                  title="Reset zoom"
-                  disabled={Math.abs(zoomFactor - 1) < 0.001}
-                  onClick={resetZoom}
-                >
-                  <RotateCcw className="h-4 w-4" />
-                </Button>
-              </div>
-            )}
-            {canZoom && !useMobilePdfCanvas && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                onClick={handlePrint}
-                title="Print"
-                aria-label="Print"
-              >
-                <Printer className="h-4 w-4" />
-              </Button>
-            )}
-            {fileName && effectiveSourceUrl && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                onClick={handleDownload}
-                title="Download"
-                aria-label="Download"
-              >
-                <Download className="h-4 w-4" />
-              </Button>
-            )}
-          </div>
-        </DialogHeader>
-
-        <div
-          ref={zoomRootRef}
-          className={cn(
-            'min-h-0 flex-1 bg-muted/30 touch-pan-x touch-pan-y',
-            canZoom ? 'overflow-auto' : 'overflow-hidden',
-          )}
-        >
-          {fileUrl && fileName && canPreviewInline(fileName) ? (
-            previewIsPdf && !pdfModeReady ? (
-              <div className="flex h-full items-center justify-center p-6 text-sm text-muted-foreground">
-                Loading PDF…
-              </div>
-            ) : useMobilePdfCanvas ? (
-              <div
-                className="h-full w-full"
-                style={{
-                  transform: `scale(${zoomFactor})`,
-                  transformOrigin: 'top left',
-                  width: `${100 / zoomFactor}%`,
-                  height: `${100 / zoomFactor}%`,
-                }}
-              >
-                <MobilePdfCanvas
-                  fileUrl={fileUrl}
-                  fileName={fileName}
-                  onOpenExternally={handleOpenExternally}
-                />
-              </div>
-            ) : (
-              <div
-                className="relative p-2"
-                style={{
-                  width: `${Math.max(zoomFactor, 1) * 100}%`,
-                  height: `${Math.max(zoomFactor, 1) * 100}%`,
-                  minWidth: '100%',
-                  minHeight: '100%',
-                }}
-              >
-                <div
-                  className="flex h-full w-full items-center justify-center"
-                  style={{
-                    transform: `scale(${zoomFactor})`,
-                    transformOrigin: 'top left',
-                    width: `${100 / zoomFactor}%`,
-                    height: `${100 / zoomFactor}%`,
-                  }}
-                >
-                  {previewIsImage ? (
-                    // eslint-disable-next-line @next/next/no-img-element -- blob/remote preview URL
-                    <img
-                      src={fileUrl}
-                      alt={fileName}
-                      className="max-h-full max-w-full object-contain"
-                      draggable={false}
-                    />
-                  ) : (
-                    <iframe
-                      ref={previewIframeRef}
-                      src={fileUrl}
-                      title={fileName}
-                      className="h-full w-full border-0"
-                    />
-                  )}
-                </div>
-              </div>
-            )
-          ) : (
-            <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
-              <FileText className="h-12 w-12 text-muted-foreground opacity-50" />
-              <p className="text-sm text-muted-foreground">
-                Preview isn&apos;t available for this file type.
-              </p>
-              {fileName && effectiveSourceUrl && (
-                <Button
-                  variant="outline"
-                  className="w-full sm:w-auto"
-                  onClick={handleDownload}
-                >
-                  <Download className="mr-2 h-4 w-4" />
-                  Download to view
-                </Button>
-              )}
+        {showImageZoom && fileUrl ? (
+          <TransformWrapper
+            initialScale={1}
+            minScale={FILE_PREVIEW_ZOOM_MIN}
+            maxScale={FILE_PREVIEW_ZOOM_MAX}
+            centerOnInit
+            pinch={{ disabled: false }}
+            doubleClick={{ disabled: false }}
+            wheel={{ disabled: false }}
+          >
+            <div className="flex min-h-0 flex-1 flex-col">
+              {header(<ImageZoomControls />)}
+              <div className="min-h-0 flex-1 bg-muted/30">{imageStage}</div>
             </div>
-          )}
-        </div>
+          </TransformWrapper>
+        ) : (
+          <>
+            {header()}
+            {previewBody}
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );
