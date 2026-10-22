@@ -12,6 +12,8 @@ type MobilePdfCanvasProps = {
   fileUrl: string;
   fileName: string;
   onOpenExternally?: () => void;
+  /** Fired when the browser cannot paint this PDF (blocked worker, fetch, or canvas). */
+  onError?: () => void;
 };
 
 /**
@@ -42,8 +44,11 @@ export function MobilePdfCanvas({
   fileUrl,
   fileName,
   onOpenExternally,
+  onError,
 }: MobilePdfCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const onErrorRef = useRef(onError);
+  onErrorRef.current = onError;
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [pageCount, setPageCount] = useState(0);
@@ -100,8 +105,7 @@ export function MobilePdfCanvas({
           canvas.height = Math.floor(viewport.height * outputScale);
           canvas.style.width = `${Math.floor(viewport.width)}px`;
           canvas.style.height = `${Math.floor(viewport.height)}px`;
-          canvas.className =
-            'mx-auto mb-3 max-w-full rounded-sm bg-white shadow-sm last:mb-0';
+          canvas.className = 'max-w-full rounded-sm bg-white shadow-sm';
           canvas.setAttribute('aria-label', `${fileName} page ${pageNumber}`);
 
           const context = canvas.getContext('2d');
@@ -131,6 +135,7 @@ export function MobilePdfCanvas({
           setErrorMessage(
             error instanceof Error ? error.message : 'Failed to render PDF',
           );
+          onErrorRef.current?.();
         }
       }
     };
@@ -168,7 +173,8 @@ export function MobilePdfCanvas({
       )}
       <div
         ref={containerRef}
-        className="w-full p-2"
+        className="my-2 flex w-full touch-none flex-col items-center gap-4"
+        style={{ touchAction: 'none' }}
         aria-busy={status === 'loading'}
         data-page-count={pageCount || undefined}
       />
