@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useModalBack } from '@/hooks/use-modal-back';
 import { useTranslations } from '@/hooks/use-translations';
 import type {
   SirActivityBucket,
@@ -202,6 +203,7 @@ function ActivityGroupTable({
 export function SirActivityChart({ stats }: SirActivityChartProps) {
   const { t: translate } = useTranslations();
   const [drillDown, setDrillDown] = useState<DrillDownState>(null);
+  useModalBack(drillDown !== null, () => setDrillDown(null));
 
   const t = (key: string, params?: Record<string, string | number>): string => {
     const value = translate(key, params);

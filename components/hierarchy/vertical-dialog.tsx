@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { ConfirmDialog } from '@/components/confirm-dialog';
+import { useModalBack } from '@/hooks/use-modal-back';
 import { toast } from '@/components/toast';
 import type {
   CadreConfig,
@@ -47,6 +48,7 @@ export function VerticalDialog({
   vertical,
   onSaved,
 }: VerticalDialogProps) {
+  useModalBack(open, () => onOpenChange(false));
   const [name, setName] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [newCategoryName, setNewCategoryName] = useState('');

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useModalBack } from '@/hooks/use-modal-back';
 import { Check, Loader2, ScrollText, Search, X } from 'lucide-react';
 
 import { PhoneCallButton } from '@/components/hierarchy/contact-with-call';
@@ -135,6 +136,7 @@ function DraftFollowUpDialog({
   onClose: () => void;
   onLogged: () => void;
 }) {
+  useModalBack(Boolean(item), () => onClose());
   const [logs, setLogs] = useState<JobFairDraftLog[]>([]);
   const [loading, setLoading] = useState(false);
   const [note, setNote] = useState('');
@@ -407,6 +409,7 @@ export function JobFairDraftList({
 }) {
   const [searchDraft, setSearchDraft] = useState(search);
   const [selected, setSelected] = useState<JobFairDraftListItem | null>(null);
+  useModalBack(!!selected, () => setSelected(null));
   const [logDraft, setLogDraft] = useState<JobFairDraftListItem | null>(null);
   const [markingId, setMarkingId] = useState<string | null>(null);
   const [assigningId, setAssigningId] = useState<string | null>(null);

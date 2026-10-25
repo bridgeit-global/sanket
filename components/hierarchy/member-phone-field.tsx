@@ -12,6 +12,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/components/toast';
+import { useModalBack } from '@/hooks/use-modal-back';
 import { useTranslations } from '@/hooks/use-translations';
 import { getMemberPhone } from '@/lib/hierarchy/geo-attribution';
 import type { CadreMemberCard } from '@/lib/hierarchy/types';
@@ -36,6 +37,7 @@ export function MemberPhoneField({
   const { t } = useTranslations();
   const phone = getMemberPhone(member)?.trim() || null;
   const [open, setOpen] = useState(false);
+  useModalBack(open, () => setOpen(false));
   const [draft, setDraft] = useState(phone ?? '');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);

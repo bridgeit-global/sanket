@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Users, CheckCircle, Clock, Save, X } from 'lucide-react';
 import { toast } from '@/components/toast';
+import { useModalBack } from '@/hooks/use-modal-back';
 
 interface Voter {
   epicNumber: string;
@@ -84,6 +85,7 @@ export function FamilyProfilingDialog({
   onClose,
   onProfilesUpdated,
 }: FamilyProfilingDialogProps) {
+  useModalBack(open, () => onClose());
   const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);

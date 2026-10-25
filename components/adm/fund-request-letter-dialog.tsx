@@ -24,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useModalBack } from '@/hooks/use-modal-back';
 import { useTranslations } from '@/hooks/use-translations';
 import {
   ADM_FUND_REQUEST_LETTER_STATUSES,
@@ -48,6 +49,7 @@ export function FundRequestLetterDialog({
   beneficiaryServiceId,
   defaultTitle,
 }: FundRequestLetterDialogProps) {
+  useModalBack(open, () => onOpenChange(false));
   const { t } = useTranslations();
   const [letters, setLetters] = useState<AdmFundRequestLetter[]>([]);
   const [funds, setFunds] = useState<Array<{ id: string; label: string }>>([]);

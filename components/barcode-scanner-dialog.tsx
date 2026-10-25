@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { toast } from '@/components/toast';
+import { useModalBack } from '@/hooks/use-modal-back';
 import { ImageUp, ScanLine } from 'lucide-react';
 
 const BarcodeScanner = dynamic(
@@ -86,6 +87,7 @@ export function BarcodeScannerDialog({
   processingUploadLabel = 'Processing image…',
   closeLabel = 'Close',
 }: BarcodeScannerDialogProps) {
+  useModalBack(open, () => onOpenChange(false));
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const processingPayloadRef = useRef(false);
   const lastRejectedPayloadRef = useRef<string | null>(null);

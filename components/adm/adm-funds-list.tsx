@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useModalBack } from '@/hooks/use-modal-back';
 import { Plus } from 'lucide-react';
 import { toast } from '@/components/toast';
 import { Button } from '@/components/ui/button';
@@ -123,6 +124,7 @@ export function AdmFundsList({
 }: AdmFundsListProps) {
   const { t } = useTranslations();
   const [fundDialogOpen, setFundDialogOpen] = useState(false);
+  useModalBack(fundDialogOpen, () => setFundDialogOpen(false));
   const [fundTypeValue, setFundTypeValue] = useState(categories[0]?.id ?? '');
   const [financialYear, setFinancialYear] = useState(() =>
     getCurrentFinancialYear(),

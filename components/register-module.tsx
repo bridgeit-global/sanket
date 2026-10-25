@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useModalBack } from '@/hooks/use-modal-back';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -171,6 +172,7 @@ export function RegisterModule({
   const [attachmentDialogOpen, setAttachmentDialogOpen] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<RegisterEntry | null>(null);
   const [editingEntry, setEditingEntry] = useState<RegisterEntry | null>(null);
+  useModalBack(!!editingEntry, () => setEditingEntry(null));
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [entryToDelete, setEntryToDelete] = useState<string | null>(null);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -181,6 +183,7 @@ export function RegisterModule({
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [newEntryAttachmentDialogOpen, setNewEntryAttachmentDialogOpen] = useState(false);
+  useModalBack(newEntryAttachmentDialogOpen, () => setNewEntryAttachmentDialogOpen(false));
 
   // Search state
   const [searchTerm, setSearchTerm] = useState(urlState.search);

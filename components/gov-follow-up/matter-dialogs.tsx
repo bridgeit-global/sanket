@@ -12,6 +12,7 @@ import {
   Upload,
 } from 'lucide-react';
 import { toast } from '@/components/toast';
+import { useModalBack } from '@/hooks/use-modal-back';
 import { FilePreviewButton } from '@/components/file-preview-button';
 import { Button } from '@/components/ui/button';
 import { DmyDateInput } from '@/components/ui/dmy-date-input';
@@ -583,6 +584,7 @@ export function GovFollowUpCreateDialog({
   saving: boolean;
   onSave: (input: GovFollowUpMatterInput) => Promise<void>;
 }) {
+  useModalBack(open, () => onOpenChange(false));
   const { t } = useTranslations();
   const [form, setForm] = useState(initial);
   const [confirmClose, setConfirmClose] = useState(false);
@@ -702,6 +704,7 @@ export function GovFollowUpDetailDialog({
   onLog: (input: GovFollowUpLogInput) => Promise<void>;
   onUploaded: (matter: GovFollowUpMatterDetail) => void;
 }) {
+  useModalBack(open, () => onOpenChange(false));
   const { t, locale } = useTranslations();
   const [kind, setKind] = useState<GovFollowUpLogKind>('follow_up');
   const [mode, setMode] = useState<GovFollowUpMode | ''>('call');
@@ -724,8 +727,10 @@ export function GovFollowUpDetailDialog({
   const [baseline, setBaseline] = useState<LogDraft | null>(null);
   const [confirmClose, setConfirmClose] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
+  useModalBack(uploadOpen, () => setUploadOpen(false));
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [documentsDialogOpen, setDocumentsDialogOpen] = useState(false);
+  useModalBack(documentsDialogOpen, () => setDocumentsDialogOpen(false));
   const [selectedDocuments, setSelectedDocuments] = useState<File[]>([]);
   const [uploadRefNo, setUploadRefNo] = useState('');
   const [uploadDate, setUploadDate] = useState(getTodayDateStringIST());

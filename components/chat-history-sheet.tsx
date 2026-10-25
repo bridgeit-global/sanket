@@ -7,6 +7,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
+import { useModalBack } from '@/hooks/use-modal-back';
 import { ChatHistory } from './chat-history';
 
 export function ChatHistorySheet({
@@ -18,6 +19,8 @@ export function ChatHistorySheet({
   onOpenChange: (open: boolean) => void;
   user: User | undefined;
 }) {
+  useModalBack(open, () => onOpenChange(false));
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-md p-0 flex flex-col">

@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState, useTransition } from 'react';
+import { useModalBack } from '@/hooks/use-modal-back';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   CalendarCheck,
@@ -208,6 +209,7 @@ export function JobFairModule({
   const [pending, startTransition] = useTransition();
   const [searchDraft, setSearchDraft] = useState(query.search);
   const [selected, setSelected] = useState<JobFairRegistration | null>(null);
+  useModalBack(!!selected, () => setSelected(null));
   const [openingResume, setOpeningResume] = useState<string | null>(null);
   const [resumePreview, setResumePreview] = useState<{
     fileUrl: string;

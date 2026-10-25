@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { useEffect, useMemo, useRef, useState, useCallback, type Dispatch, type SetStateAction } from 'react';
+import { useModalBack } from '@/hooks/use-modal-back';
 import {
   ArrowLeft,
   ChevronDown,
@@ -1911,8 +1912,10 @@ export function LetterGeneration({
   const [selectedSavedLetterId, setSelectedSavedLetterId] = useState<string | null>(
     null,
   );
+  useModalBack(!!selectedSavedLetterId, () => setSelectedSavedLetterId(null));
   const [previewFullscreen, setPreviewFullscreen] = useState(false);
   const [livePreviewFullscreen, setLivePreviewFullscreen] = useState(false);
+  useModalBack(livePreviewFullscreen, () => setLivePreviewFullscreen(false));
   const [savedPreviewToolbarEl, setSavedPreviewToolbarEl] =
     useState<HTMLDivElement | null>(null);
   const [livePreviewToolbarEl, setLivePreviewToolbarEl] =

@@ -11,6 +11,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { useModalBack } from '@/hooks/use-modal-back';
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -33,6 +34,8 @@ export function ConfirmDialog({
   onConfirm,
   variant = 'default',
 }: ConfirmDialogProps) {
+  useModalBack(open, () => onOpenChange(false));
+
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>

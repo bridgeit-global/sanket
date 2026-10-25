@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { toast } from '@/components/toast';
+import { useModalBack } from '@/hooks/use-modal-back';
 import { ImageUp, QrCode } from 'lucide-react';
 
 type QrScannerDialogProps = {
@@ -57,6 +58,7 @@ export function QrScannerDialog({
   processingUploadLabel = 'Processing image…',
   closeLabel = 'Close',
 }: QrScannerDialogProps) {
+  useModalBack(open, () => onOpenChange(false));
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const rafRef = useRef<number | null>(null);

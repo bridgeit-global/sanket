@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from '@/components/toast';
 import { FilePreviewButton } from '@/components/file-preview-button';
+import { useModalBack } from '@/hooks/use-modal-back';
 import { useTranslations } from '@/hooks/use-translations';
 import { SidebarToggle } from '@/components/sidebar-toggle';
 import { TablePagination } from '@/components/table-pagination';
@@ -364,6 +365,7 @@ export function VisitorWorkflow({
   // Meeting Line Up tab — filters collapsed by default; visitor lineup always visible
   const [createServiceFiltersOpen, setCreateServiceFiltersOpen] = useState(false);
   const [selectedVisitor, setSelectedVisitor] = useState<VisitorRow | null>(null);
+  useModalBack(!!selectedVisitor, () => setSelectedVisitor(null));
   const [pendingServiceName, setPendingServiceName] = useState('');
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [notes, setNotes] = useState('');
@@ -404,6 +406,7 @@ export function VisitorWorkflow({
     visitorId: string;
     service: VisitorServiceRow;
   } | null>(null);
+  useModalBack(!!serviceBeingChanged, () => setServiceBeingChanged(null));
   const [changeServiceName, setChangeServiceName] = useState('');
   const [changingService, setChangingService] = useState(false);
 

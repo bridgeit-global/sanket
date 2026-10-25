@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Combobox } from '@/components/ui/combobox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useModalBack } from '@/hooks/use-modal-back';
 import { FileUploadZone } from '@/components/ui/file-upload-zone';
 import { toast } from '@/components/toast';
 import {
@@ -155,6 +156,7 @@ function QrTokenScannerDialog({
     onOpenChange: (open: boolean) => void;
     onTokenDetected: (token: string) => void;
 }) {
+    useModalBack(open, () => onOpenChange(false));
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const streamRef = useRef<MediaStream | null>(null);
     const rafRef = useRef<number | null>(null);
@@ -412,6 +414,7 @@ export function TaskManagement({
     const [isLoading, setIsLoading] = useState(true);
     const [selectedTask, setSelectedTask] = useState<TaskWithService | null>(null);
     const [showTaskDialog, setShowTaskDialog] = useState(false);
+    useModalBack(showTaskDialog, () => setShowTaskDialog(false));
     const [requestLetterOpen, setRequestLetterOpen] = useState(false);
     const [linkedLetters, setLinkedLetters] = useState<
         Array<{
@@ -445,6 +448,7 @@ export function TaskManagement({
     const [pendingFiles, setPendingFiles] = useState<File[]>([]);
     const [isUpdating, setIsUpdating] = useState(false);
     const [showEscalationDialog, setShowEscalationDialog] = useState(false);
+    useModalBack(showEscalationDialog, () => setShowEscalationDialog(false));
     const [tagVoterTask, setTagVoterTask] = useState<TaskWithService | null>(null);
     const [taggingVoter, setTaggingVoter] = useState(false);
     const [escalationReason, setEscalationReason] = useState('');

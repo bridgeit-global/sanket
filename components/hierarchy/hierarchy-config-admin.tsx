@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useModalBack } from '@/hooks/use-modal-back';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -196,6 +197,7 @@ export function HierarchyConfigAdmin({
 }: HierarchyConfigAdminProps) {
   const counts = referenceCounts ?? EMPTY_REFERENCE_COUNTS;
   const [editState, setEditState] = useState<EditState | null>(null);
+  useModalBack(editState !== null, () => setEditState(null));
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);

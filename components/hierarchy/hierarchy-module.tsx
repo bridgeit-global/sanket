@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
+import { useModalBack } from '@/hooks/use-modal-back';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Loader2, Plus, Search, Settings, X } from 'lucide-react';
 import { SidebarToggle } from '@/components/sidebar-toggle';
@@ -121,6 +122,7 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
 
   const [editorTarget, setEditorTarget] = useState<MemberEditorTarget | null>(null);
   const [configOpen, setConfigOpen] = useState(false);
+  useModalBack(configOpen, () => setConfigOpen(false));
 
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });

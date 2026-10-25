@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useModalBack } from '@/hooks/use-modal-back';
 import Image from 'next/image';
 import { ImageIcon } from 'lucide-react';
 import {
@@ -88,6 +89,7 @@ export function AdmProjectGroundPhotos({
   const { t } = useTranslations();
   const [lightboxPhoto, setLightboxPhoto] =
     useState<AdmProjectGroundPhoto | null>(null);
+  useModalBack(!!lightboxPhoto, () => setLightboxPhoto(null));
 
   return (
     <>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef, type CSSProperties } from 'react';
+import { useModalBack } from '@/hooks/use-modal-back';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -621,6 +622,7 @@ export function DailyProgramme({
 
   // Beneficiary task creation dialog
   const [beneficiaryTaskDialogOpen, setBeneficiaryTaskDialogOpen] = useState(false);
+  useModalBack(beneficiaryTaskDialogOpen, () => setBeneficiaryTaskDialogOpen(false));
   const [programmeItemForTask, setProgrammeItemForTask] = useState<ProgrammeItem | null>(null);
   const [voterEpicNumber, setVoterEpicNumber] = useState('');
   const [voterName, setVoterName] = useState('');

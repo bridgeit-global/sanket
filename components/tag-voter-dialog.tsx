@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { useModalBack } from '@/hooks/use-modal-back';
 import type { VoterWithPartNo } from '@/lib/db/schema';
 
 export function TagVoterDialog({
@@ -26,6 +27,8 @@ export function TagVoterDialog({
   pending?: boolean;
   onSelectVoter: (voter: VoterWithPartNo) => void;
 }) {
+  useModalBack(open, () => onOpenChange(false));
+
   return (
     <Dialog
       open={open}

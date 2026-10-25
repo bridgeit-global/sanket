@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useModalBack } from '@/hooks/use-modal-back';
 import Image from 'next/image';
 import { FileText, Loader2, Trash2, Upload } from 'lucide-react';
 import { FilePreviewButton } from '@/components/file-preview-button';
@@ -83,12 +84,14 @@ export function ProjectDetailExtras({
   const { t } = useTranslations();
   const [uploadingDoc, setUploadingDoc] = useState(false);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  useModalBack(uploadDialogOpen, () => setUploadDialogOpen(false));
   const [uploadingPhotoType, setUploadingPhotoType] =
     useState<ProjectGroundMediaPhotoType | null>(null);
   const [savingExecution, setSavingExecution] = useState(false);
   const [lightboxPhoto, setLightboxPhoto] = useState<ProjectPhotoItem | null>(
     null,
   );
+  useModalBack(!!lightboxPhoto, () => setLightboxPhoto(null));
   const [executionDraft, setExecutionDraft] = useState({
     physicalStatus,
     bhoomiPujanDone,
