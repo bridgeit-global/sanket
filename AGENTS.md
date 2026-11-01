@@ -29,4 +29,5 @@ Verify DB: `pnpm db:verify`.
 - New users from `/register` have **no role** and land on `/modules/profile` (“No role assigned”). Module access is permission-gated in the DB.
 - Redis / Brave Search / WhatsApp worker / VAPID are optional; core auth + most modules work without them.
 - **File storage:** always Supabase Storage (`supabase.storage`). Do not use Vercel Blob (`@vercel/blob` / `BLOB_READ_WRITE_TOKEN`) for new or migrated uploads.
-- After a VM reboot: start `dockerd`, then `supabase start`, ensure `.env.local` still matches `supabase status -o env`, then `pnpm dev`.
+- After a VM reboot: start `dockerd` (fuse-overlayfs storage driver, iptables-legacy), then `supabase start`, ensure `.env.local` still matches `supabase status -o env`, then `pnpm dev`.
+- Cloud Agent `start` does that boot sequence and holds `pnpm dev` in the foreground. If `GET /ping` already returns `pong`, do not start a second Next.js server.
