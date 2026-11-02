@@ -5,13 +5,12 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Briefcase, Cake, Phone, Users, ClipboardCheck } from 'lucide-react';
+import { Cake, Phone, Users, ClipboardCheck } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ModulePageHeader } from '@/components/module-page-header';
 import { useTranslations } from '@/hooks/use-translations';
 import { PhoneUpdatesChart } from '@/components/phone-updates-chart';
 import { SirActivityChart } from '@/components/sir-activity-chart';
-import { JobFairActivityChart } from '@/components/job-fair-activity-chart';
 import { toWhatsAppChatUrl } from '@/lib/indian-mobile';
 import { getTodayDateStringIST } from '@/lib/ist-date';
 import { getVerticalBadgeClass } from '@/lib/hierarchy/vertical-colors';
@@ -238,9 +237,6 @@ export function DashboardContent({ data }: DashboardContentProps) {
   const sirTitle = t('sir.dashboard.title');
   const sirDashboardTitle =
     sirTitle === 'sir.dashboard.title' ? 'SIR Activity' : sirTitle;
-  const jobFairTitle = t('jobFair.dashboard.title');
-  const jobFairDashboardTitle =
-    jobFairTitle === 'jobFair.dashboard.title' ? 'Job Fair Activity' : jobFairTitle;
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
@@ -323,18 +319,6 @@ export function DashboardContent({ data }: DashboardContentProps) {
               </span>
             </button>
           </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Briefcase className="h-5 w-5" />
-            {jobFairDashboardTitle}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <JobFairActivityChart stats={data.jobFairActivity} />
         </CardContent>
       </Card>
 

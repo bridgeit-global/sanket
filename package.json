@@ -32,8 +32,8 @@
     "postinstall": "node -e \"require('fs').copyFileSync('node_modules/pdfjs-dist/build/pdf.worker.min.mjs','public/pdf.worker.min.mjs')\""
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "^2.0.0",
     "@ai-sdk/google": "^3.0.0",
+    "@ai-sdk/openai": "2.0.0",
     "@ai-sdk/provider": "2.0.0-beta.1",
     "@ai-sdk/react": "2.0.0-beta.6",
     "@ai-sdk/xai": "^2.0.0",

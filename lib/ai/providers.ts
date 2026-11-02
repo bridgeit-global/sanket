@@ -1,5 +1,5 @@
 import { customProvider } from 'ai';
-import { createAnthropic } from '@ai-sdk/anthropic';
+import { createOpenAI } from '@ai-sdk/openai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import {
   artifactModel,
@@ -26,9 +26,49 @@ const fetchWithTimeout: typeof fetch = async (url, options) => {
   }
 };
 
-const anthropic = createAnthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-  fetch: fetchWithTimeout,
+const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
+const OPENROUTER_SESSION_HEADER = 'x-session-id';
+
+/** Pin a conversation to one OpenRouter cache. GLM reuses cached input for that session. */
+export function openRouterSessionHeaders(
+  sessionId: string,
+): Record<string, string> {
+  return { [OPENROUTER_SESSION_HEADER]: sessionId.slice(0, 256) };
+}
+
+/**
+ * Copy the session header into the JSON body as `session_id`. OpenRouter uses
+ * that field as the sticky cache key, so later turns in the same chat hit the
+ * cached prefix instead of a new provider cache.
+ */
+const fetchViaOpenRouter: typeof fetch = async (url, options) => {
+  const headers = new Headers(options?.headers);
+  const sessionId = headers.get(OPENROUTER_SESSION_HEADER);
+  let body = options?.body;
+  if (sessionId && typeof body === 'string') {
+    try {
+      const json = JSON.parse(body) as Record<string, unknown>;
+      if (json && typeof json === 'object' && !Array.isArray(json)) {
+        json.session_id = sessionId;
+        body = JSON.stringify(json);
+        headers.delete('content-length');
+      }
+    } catch {
+      // Leave non-JSON bodies unchanged.
+    }
+  }
+  return fetchWithTimeout(url, {
+    ...options,
+    headers,
+    body,
+  });
+};
+
+const openrouter = createOpenAI({
+  baseURL: OPENROUTER_BASE_URL,
+  apiKey: process.env.OPENROUTER_API_KEY,
+  name: 'openrouter',
+  fetch: fetchViaOpenRouter,
 });
 
 const google = createGoogleGenerativeAI({
@@ -36,12 +76,13 @@ const google = createGoogleGenerativeAI({
   fetch: fetchWithTimeout,
 });
 
-/** Primary chat / analytics model */
-const CHAT_MODEL = 'claude-sonnet-5';
+/** Primary chat / analytics model, served by OpenRouter. */
+const CHAT_MODEL = 'z-ai/glm-5.3-flash';
 /** Lightweight models for titles and artifacts */
 const GEMINI_MODEL = 'gemini-3.5-flash';
 
-const claudeChatModel = anthropic(CHAT_MODEL);
+// `.chat()` uses OpenRouter's OpenAI-compatible chat completions API.
+const glmChatModel = openrouter.chat(CHAT_MODEL);
 const geminiModel = google(GEMINI_MODEL);
 
 export const myProvider = isTestEnvironment
@@ -55,8 +96,8 @@ export const myProvider = isTestEnvironment
     })
   : customProvider({
       languageModels: {
-        'chat-model': claudeChatModel,
-        'chat-model-reasoning': claudeChatModel,
+        'chat-model': glmChatModel,
+        'chat-model-reasoning': glmChatModel,
         // @ts-expect-error - Type compatibility between AI SDK versions
         'title-model': geminiModel,
         // @ts-expect-error - Type compatibility between AI SDK versions

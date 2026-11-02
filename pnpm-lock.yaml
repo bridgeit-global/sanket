@@ -8,12 +8,12 @@ importers:
 
   .:
     dependencies:
-      '@ai-sdk/anthropic':
-        specifier: ^2.0.0
-        version: 2.0.0(zod@3.25.68)
       '@ai-sdk/google':
         specifier: ^3.0.0
         version: 3.0.2(zod@3.25.68)
+      '@ai-sdk/openai':
+        specifier: 2.0.0
+        version: 2.0.0(zod@3.25.68)
       '@ai-sdk/provider':
         specifier: 2.0.0-beta.1
         version: 2.0.0-beta.1
@@ -369,12 +369,6 @@ packages:
   '@adobe/css-tools@4.5.0':
     resolution: {integrity: sha512-6OzddxPio9UiWTCemp4N8cYLV2ZN1ncRnV1cVGtve7dhPOtRkleRyx32GQCYSwDYgaHU3USMm84tNsvKzRCa1Q==}
 
-  '@ai-sdk/anthropic@2.0.0':
-    resolution: {integrity: sha512-uyyaO4KhxoIKZztREqLPh+6/K3ZJx/rp72JKoUEL9/kC+vfQTThUfPnY/bUryUpcnawx8IY/tSoYNOi/8PCv7w==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      zod: ^3.25.76 || ^4
-
   '@ai-sdk/gateway@1.0.0-beta.3':
     resolution: {integrity: sha512-g49gMSkXy94lYvl5LRh438OR/0JCG6ol0jV+iLot7cy5HLltZlGocEuauETBu4b10mDXOd7XIjTEZoQpYFMYLQ==}
     engines: {node: '>=18'}
@@ -389,6 +383,12 @@ packages:
 
   '@ai-sdk/openai-compatible@1.0.0':
     resolution: {integrity: sha512-I5d29iB82ty/e0jqpH4iiWCkFtG1oANzK2WwY3WNF1vWjzqVzvPT+YXR0y43caiq0lIWwMyhJu+bMizmzigrwA==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4
+
+  '@ai-sdk/openai@2.0.0':
+    resolution: {integrity: sha512-G0WY5K81JwGpuX9HEmP2VTdt3N9m43qPnGT4fWkXcpu6Y2B05nnjs8k1r/csCJd8+TkYC6esjBABQYHxdMOejQ==}
     engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.25.76 || ^4
@@ -6055,12 +6055,6 @@ snapshots:
 
   '@adobe/css-tools@4.5.0': {}
 
-  '@ai-sdk/anthropic@2.0.0(zod@3.25.68)':
-    dependencies:
-      '@ai-sdk/provider': 2.0.0
-      '@ai-sdk/provider-utils': 3.0.0(zod@3.25.68)
-      zod: 3.25.68
-
   '@ai-sdk/gateway@1.0.0-beta.3(zod@3.25.68)':
     dependencies:
       '@ai-sdk/provider': 2.0.0-beta.1
@@ -6079,11 +6073,17 @@ snapshots:
       '@ai-sdk/provider-utils': 3.0.0(zod@3.25.68)
       zod: 3.25.68
 
+  '@ai-sdk/openai@2.0.0(zod@3.25.68)':
+    dependencies:
+      '@ai-sdk/provider': 2.0.0
+      '@ai-sdk/provider-utils': 3.0.0(zod@3.25.68)
+      zod: 3.25.68
+
   '@ai-sdk/provider-utils@3.0.0(zod@3.25.68)':
     dependencies:
       '@ai-sdk/provider': 2.0.0
-      '@standard-schema/spec': 1.0.0
-      eventsource-parser: 3.0.3
+      '@standard-schema/spec': 1.1.0
+      eventsource-parser: 3.0.6
       zod: 3.25.68
       zod-to-json-schema: 3.24.5(zod@3.25.68)
 

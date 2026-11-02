@@ -23,7 +23,7 @@ import { webSearchTool } from '@/lib/ai/tools/web-search';
 import { sqlQueryTool } from '@/lib/ai/tools/sql-query';
 import { form20QueryTool } from '@/lib/ai/tools/form20-query';
 import { isProductionEnvironment } from '@/lib/constants';
-import { myProvider } from '@/lib/ai/providers';
+import { myProvider, openRouterSessionHeaders } from '@/lib/ai/providers';
 import { entitlementsByUserRole } from '@/lib/ai/entitlements';
 import { postRequestBodySchema, type PostRequestBody } from './schema';
 import { geolocation } from '@vercel/functions';
@@ -170,6 +170,7 @@ export async function POST(request: Request) {
           model: myProvider.languageModel(selectedChatModel),
           system: generalPrompt,
           messages: convertToModelMessages(uiMessages),
+          headers: openRouterSessionHeaders(id),
           maxRetries: 2, // Retry on transient failures
           stopWhen: stepCountIs(10),
           experimental_transform: smoothStream({ chunking: 'word' }),

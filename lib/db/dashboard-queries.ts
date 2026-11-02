@@ -16,10 +16,6 @@ import {
 import { TABLES } from './schema';
 import { getPhoneUpdateStats, getBeneficiaryServiceStats, getDashboardCounts, getSirActivityStats } from './queries';
 import type { SirActivityStats } from './sir-queries';
-import {
-  getJobFairActivityStats,
-  type JobFairActivityStats,
-} from './job-fair-queries';
 
 const BIRTHDAY_WINDOW_DAYS = 7;
 const BIRTHDAY_LIST_LIMIT = 15;
@@ -82,7 +78,6 @@ export interface DashboardData {
     };
   };
   sirActivity: SirActivityStats;
-  jobFairActivity: JobFairActivityStats;
   upcoming: Array<{
     id: string;
     date: string;
@@ -568,14 +563,12 @@ export async function getDashboardData(): Promise<DashboardData> {
     phoneUpdateStats,
     beneficiaryServiceStats,
     sirActivity,
-    jobFairActivity,
     upcomingBirthdays,
   ] = await Promise.all([
     getDashboardCounts(todayStr),
     getPhoneUpdateStats(),
     getBeneficiaryServiceStats(),
     getSirActivityStats(),
-    getJobFairActivityStats(),
     getUpcomingCadreBirthdays(),
   ]);
 
@@ -609,7 +602,6 @@ export async function getDashboardData(): Promise<DashboardData> {
       },
     },
     sirActivity,
-    jobFairActivity,
     upcoming: dashboardCounts.programmeItems.slice(0, 3).map((item) => ({
       id: item.id,
       date: item.date,

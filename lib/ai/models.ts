@@ -10,11 +10,11 @@ export const chatModels: Array<ChatModel> = [
   {
     id: 'chat-model',
     name: 'Agent',
-    description: 'Claude Sonnet 5 for constituency analytics and chat',
+    description: 'GLM 5.3 Flash for constituency analytics and chat',
   },
   {
     id: 'chat-model-reasoning',
     name: 'Reasoning',
-    description: 'Claude Sonnet 5 with reasoning stream enabled',
+    description: 'GLM 5.3 Flash with reasoning stream enabled',
   },
 ];
