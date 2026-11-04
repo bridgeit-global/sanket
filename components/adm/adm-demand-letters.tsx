@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useModalBack } from '@/hooks/use-modal-back';
 import { FileText, Plus, Search, Trash2 } from 'lucide-react';
 import { toast } from '@/components/toast';
 import { FilePreviewButton } from '@/components/file-preview-button';
@@ -51,6 +52,7 @@ export function AdmDemandLetters({
   const [letters, setLetters] = useState<AdmDemandLetter[]>([]);
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
+  useModalBack(createOpen, () => setCreateOpen(false));
   const [saving, setSaving] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 

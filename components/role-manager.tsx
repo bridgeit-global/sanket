@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useModalBack } from '@/hooks/use-modal-back';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -63,8 +64,10 @@ export function RoleManager() {
   const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [showRoleDialog, setShowRoleDialog] = useState(false);
+  useModalBack(showRoleDialog, () => setShowRoleDialog(false));
   const [editingRole, setEditingRole] = useState<RoleWithPermissions | null>(null);
   const [deleteRoleId, setDeleteRoleId] = useState<string | null>(null);
+  useModalBack(deleteRoleId !== null, () => setDeleteRoleId(null));
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [roleForm, setRoleForm] = useState({
     name: '',

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useModalBack } from '@/hooks/use-modal-back';
 import {
   ChevronDown,
   ChevronUp,
@@ -196,6 +197,7 @@ export function LetterTemplateMasterManager({
       : 'all',
   );
   const [letterheadDialogOpen, setLetterheadDialogOpen] = useState(false);
+  useModalBack(letterheadDialogOpen, () => setLetterheadDialogOpen(false));
   const initialOpenDoneRef = useRef(false);
 
   const refreshLetterTypes = async () => {

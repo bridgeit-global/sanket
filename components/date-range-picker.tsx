@@ -80,16 +80,19 @@ export function DateRangePicker({
   };
 
   return (
-    <DropdownMenu open={open} onOpenChange={setOpen}>
+    <DropdownMenu open={open} onOpenChange={setOpen} modal={false}>
       <DropdownMenuTrigger asChild>
         <Button variant="outline" className="w-full justify-start text-left font-normal">
           <Calendar className="mr-2 h-4 w-4" />
           <span className="flex-1 text-left">{displayText()}</span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-[320px] p-4">
-        <div className="space-y-4">
-          <div className="grid gap-3">
+      <DropdownMenuContent
+        align="start"
+        className="max-h-[60vh] w-[min(20rem,calc(100vw-2rem))] touch-pan-y !overflow-y-auto p-4"
+      >
+        <div className="touch-pan-y space-y-4">
+          <div className="grid touch-pan-y gap-3">
             <div className="space-y-2">
               <Label htmlFor="rangeStart">Start date</Label>
               <DmyDateInput

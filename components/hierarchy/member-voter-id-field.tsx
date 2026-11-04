@@ -14,6 +14,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/components/toast';
+import { useModalBack } from '@/hooks/use-modal-back';
 import { useTranslations } from '@/hooks/use-translations';
 import { VoterPickerCombobox } from './voter-picker-combobox';
 import type { CadreMemberCard } from '@/lib/hierarchy/types';
@@ -41,6 +42,7 @@ export function MemberVoterIdField({
 }: MemberVoterIdFieldProps) {
   const { t } = useTranslations();
   const [open, setOpen] = useState(false);
+  useModalBack(open, () => setOpen(false));
   const [epicDraft, setEpicDraft] = useState(() =>
     member.epicNumber && isCompleteEpicNumber(member.epicNumber)
       ? normalizeEpicNumber(member.epicNumber)

@@ -27,6 +27,7 @@ import {
 } from '@/lib/file-preview';
 
 import { FileUploadZone } from '@/components/ui/file-upload-zone';
+import { useModalBack } from '@/hooks/use-modal-back';
 
 interface Attachment {
   id: string;
@@ -55,6 +56,7 @@ export function RegisterAttachmentDialog({
   onAttachmentsChange,
   canDeleteAttachments = true,
 }: RegisterAttachmentDialogProps) {
+  useModalBack(open, () => onOpenChange(false));
   const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [opening, setOpening] = useState<string | null>(null);

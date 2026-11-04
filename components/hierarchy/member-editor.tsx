@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useModalBack } from '@/hooks/use-modal-back';
 import { Pencil, Plus, Trash2, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -174,6 +175,7 @@ export function MemberEditor({
   electionId,
   onSaved,
 }: MemberEditorProps) {
+  useModalBack(open, () => onOpenChange(false));
   const { t } = useTranslations();
   const [draft, setDraft] = useState<Draft>(() => draftFromTarget(target));
   const [enrollStep, setEnrollStep] = useState<1 | 2>(1);

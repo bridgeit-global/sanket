@@ -12,6 +12,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/components/toast';
+import { useModalBack } from '@/hooks/use-modal-back';
 import { useTranslations } from '@/hooks/use-translations';
 import { getMemberDob, getMemberVoterAge } from '@/lib/hierarchy/geo-attribution';
 import type { CadreMemberCard } from '@/lib/hierarchy/types';
@@ -37,6 +38,7 @@ export function MemberDobField({
   const voterAge = getMemberVoterAge(member);
   const hasVoter = Boolean(member.epicNumber?.trim());
   const [open, setOpen] = useState(false);
+  useModalBack(open, () => setOpen(false));
   const [draft, setDraft] = useState(dob ?? '');
   const [saving, setSaving] = useState(false);
 

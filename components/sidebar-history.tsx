@@ -4,6 +4,7 @@ import { isToday, isYesterday, subMonths, subWeeks } from 'date-fns';
 import { useParams, useRouter } from 'next/navigation';
 import type { User } from 'next-auth';
 import { useState } from 'react';
+import { useModalBack } from '@/hooks/use-modal-back';
 import { toast } from '@/components/toast';
 import { motion } from 'framer-motion';
 import {
@@ -110,6 +111,7 @@ export function SidebarHistory({ user }: { user: User | undefined }) {
   const router = useRouter();
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  useModalBack(showDeleteDialog, () => setShowDeleteDialog(false));
 
   const hasReachedEnd = paginatedChatHistories
     ? paginatedChatHistories.some((page) => page.hasMore === false)

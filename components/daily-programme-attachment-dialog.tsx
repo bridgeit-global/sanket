@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -25,6 +25,7 @@ import {
   isPdfFile,
 } from '@/lib/file-preview';
 import { FileUploadZone } from '@/components/ui/file-upload-zone';
+import { useModalBack } from '@/hooks/use-modal-back';
 
 export type DailyProgrammeAttachment = {
   id: string;
@@ -51,6 +52,11 @@ export function DailyProgrammeAttachmentDialog({
   attachments,
   onAttachmentsChange,
 }: DailyProgrammeAttachmentDialogProps) {
+  const closeDialog = useCallback(() => {
+    onOpenChange(false);
+  }, [onOpenChange]);
+  useModalBack(open, closeDialog);
+
   const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);

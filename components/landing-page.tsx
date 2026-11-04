@@ -45,6 +45,7 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 import { useLanguage } from '@/components/language-provider';
+import { useModalBack } from '@/hooks/use-modal-back';
 import { useTranslations } from '@/hooks/use-translations';
 import { cn } from '@/lib/utils';
 
@@ -323,6 +324,7 @@ export function LandingPage() {
   const [themeMounted, setThemeMounted] = useState(false);
   const [journeyIndex, setJourneyIndex] = useState(0);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  useModalBack(mobileNavOpen, () => setMobileNavOpen(false));
   const [showBackToTop, setShowBackToTop] = useState(false);
 
   useEffect(() => setThemeMounted(true), []);

@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { toast } from '@/components/toast';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useModalBack } from '@/hooks/use-modal-back';
 import { MobilePdfCanvas } from '@/components/mobile-pdf-canvas';
 import {
   FILE_PREVIEW_ZOOM_MAX,
@@ -186,6 +187,10 @@ export function FilePreviewDialog({
   sourceUrl,
 }: FilePreviewDialogProps) {
   const isMobile = useIsMobile();
+  const closePreview = useCallback(() => {
+    onOpenChange(false);
+  }, [onOpenChange]);
+  useModalBack(open, closePreview);
   const [useCanvasPdf, setUseCanvasPdf] = useState(false);
   const [pdfModeReady, setPdfModeReady] = useState(false);
   const [pdfInlineFailed, setPdfInlineFailed] = useState(false);

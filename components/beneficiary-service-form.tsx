@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useModalBack } from '@/hooks/use-modal-back';
 import { Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -188,6 +189,7 @@ export function BeneficiaryServiceForm(props: BeneficiaryServiceFormProps) {
     const [notes, setNotes] = useState(initialData?.notes ?? '');
     const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
     const [attachmentDialogOpen, setAttachmentDialogOpen] = useState(false);
+    useModalBack(attachmentDialogOpen, () => setAttachmentDialogOpen(false));
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [todayProgrammes, setTodayProgrammes] = useState<TodayProgrammeRow[]>([]);
     const [linkedProgrammeId, setLinkedProgrammeId] = useState(() => {

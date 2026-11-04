@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useModalBack } from '@/hooks/use-modal-back';
 import Link from 'next/link';
 import {
   ExternalLink,
@@ -170,8 +171,10 @@ export function AdmFundRecordCard({
   const [addingAllocation, setAddingAllocation] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  useModalBack(uploadDialogOpen, () => setUploadDialogOpen(false));
 
   const [createProjectOpen, setCreateProjectOpen] = useState(false);
+  useModalBack(createProjectOpen, () => setCreateProjectOpen(false));
   const [newProjectName, setNewProjectName] = useState('');
   const [newProjectDepartment, setNewProjectDepartment] = useState('');
   const [newProjectBudget, setNewProjectBudget] = useState(0);

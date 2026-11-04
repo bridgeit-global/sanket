@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useModalBack } from '@/hooks/use-modal-back';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -62,6 +63,7 @@ export function ModulePermissionManager() {
   const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddUser, setShowAddUser] = useState(false);
+  useModalBack(showAddUser, () => setShowAddUser(false));
   const [newUser, setNewUser] = useState({
     userId: '',
     password: '',

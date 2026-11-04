@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useModalBack } from '@/hooks/use-modal-back';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -171,6 +172,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingEntry, setEditingEntry] = useState<RegisterEntry | null>(null);
+  useModalBack(!!editingEntry, () => setEditingEntry(null));
   const [editingProject, setEditingProject] = useState(false);
   const [allProjects, setAllProjects] = useState<Project[]>([]);
 
@@ -232,6 +234,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [attachmentDialogOpen, setAttachmentDialogOpen] = useState(false);
+  useModalBack(attachmentDialogOpen, () => setAttachmentDialogOpen(false));
 
   // Get unique ward/beat values from all projects
   const availableWardValues = useMemo(() => {

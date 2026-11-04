@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useModalBack } from '@/hooks/use-modal-back';
 import { AlertTriangle, ClipboardList, Download, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -92,6 +93,7 @@ export function AttendanceAuditLogs({ initialData }: { initialData: { logs: Audi
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [selected, setSelected] = useState<AuditLog | null>(null);
+  useModalBack(selected != null, () => setSelected(null));
   const [employeePage, setEmployeePage] = useState(1);
   const [employeePageSize, setEmployeePageSize] = useState(10);
   const logs = initialData.logs ?? [];
