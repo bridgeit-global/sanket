@@ -1640,6 +1640,15 @@ function GeneralLetterTableFields({
   );
 }
 
+/** English is only offered on the general letter form. Other types stay Marathi. */
+function letterLocaleForType(
+  letterType: string,
+  locale: string | null | undefined,
+): LetterLocale {
+  if (resolveLetterFormBase(letterType) !== 'general') return 'mr';
+  return locale === 'en' ? 'en' : 'mr';
+}
+
 export function LetterGeneration({
   isAdmin = false,
   beneficiaryServiceId,
@@ -1670,14 +1679,16 @@ export function LetterGeneration({
 }) {
   const { data: session } = useSession();
   const { t, locale } = useTranslations();
-  /** Letters are Marathi-only. */
-  const letterLocale: LetterLocale = 'mr';
+  /** General letters can be English or Marathi. Every other type stays Marathi. */
+  const [letterLocale, setLetterLocale] = useState<LetterLocale>('mr');
   /** Field labels / options follow letter language, not UI locale. */
   const lt = useCallback(
     (key: string) => letterMessage(letterLocale, key),
     [letterLocale],
   );
   const prevLetterLocaleRef = useRef<LetterLocale>('mr');
+  /** Skip one locale rewrite when a saved general letter is loaded. */
+  const skipNextLocaleSyncRef = useRef(false);
   const linkedLetterType = initialLetterType?.trim() || null;
   const lockFixedFields = Boolean(beneficiaryServiceId);
   const voterPrefillName = (prefill?.name ?? prefillName ?? '').trim();
@@ -2121,6 +2132,12 @@ export function LetterGeneration({
   );
 
   useEffect(() => {
+    if (skipNextLocaleSyncRef.current) {
+      skipNextLocaleSyncRef.current = false;
+      prevLetterLocaleRef.current = letterLocale;
+      return;
+    }
+
     const prevLocale = prevLetterLocaleRef.current;
     const prevAutoDate = todayDisplay(prevLocale);
     const nextAutoDate = todayDisplay(letterLocale);
@@ -2142,6 +2159,9 @@ export function LetterGeneration({
     const nextReferenceNo = (prevNumber: string) =>
       formatReferenceNumberForLocale(prevNumber, letterLocale);
 
+    // Language only changes on the general letter. Leave other letter forms in Marathi.
+    const localeChanged = prevLocale !== letterLocale;
+    if (!localeChanged) {
     setFeesFields((prev) => ({
       ...prev,
       referencePrefix: nextPrefix(prev.referencePrefix),
@@ -2337,6 +2357,7 @@ export function LetterGeneration({
         duration: filterText(prev.duration),
       };
     });
+    }
     const nextParagraphRows = paragraphRowsRef.current.map((row) => filterText(row));
     setParagraphRows(nextParagraphRows.length > 0 ? nextParagraphRows : ['']);
     setGeneralFields((prev) => {
@@ -2380,6 +2401,7 @@ export function LetterGeneration({
       };
     });
 
+    if (!localeChanged) {
     applyMasterAddressToFields(addresses, addressSelections, letterLocale, {
       setFeesFields,
       setSchoolAdmissionFields,
@@ -2464,6 +2486,7 @@ export function LetterGeneration({
           to: getDefaultWardToAddress(issueType, letterLocale),
         };
       });
+    }
     }
 
     prevLetterLocaleRef.current = letterLocale;
@@ -3286,6 +3309,13 @@ export function LetterGeneration({
   }, []);
 
   const formTab = resolveLetterFormBase(activeTab);
+  const generalLetterForm = formTab === 'general';
+
+  useEffect(() => {
+    if (!generalLetterForm && letterLocale !== 'mr') {
+      setLetterLocale('mr');
+    }
+  }, [generalLetterForm, letterLocale]);
 
   const wardIssueComboboxOptions = useMemo(
     () =>
@@ -5170,6 +5200,11 @@ export function LetterGeneration({
       letter.fields && typeof letter.fields === 'object'
         ? (letter.fields as Record<string, unknown>)
         : {};
+    const editLocale = letterLocaleForType(letter.letterType, letter.letterLocale);
+    if (editLocale !== letterLocale) {
+      skipNextLocaleSyncRef.current = true;
+      setLetterLocale(editLocale);
+    }
     draftEpochRef.current += 1;
     referenceNumberAutoRef.current = false;
     editingLetterIdRef.current = letter.id;
@@ -5183,7 +5218,7 @@ export function LetterGeneration({
 
     const formBase = resolveLetterFormBase(letter.letterType);
     if (formBase === 'general') {
-      const merged = mergeSavedLetterFields(generalDefaults(letterLocale), saved);
+      const merged = mergeSavedLetterFields(generalDefaults(editLocale), saved);
       setGeneralFields(merged);
       setSecondaryToOpen(generalSecondaryHasContent(merged));
       setCopyToOpen(generalCopyHasContent(merged));
@@ -5196,51 +5231,51 @@ export function LetterGeneration({
         .filter(Boolean);
       setParagraphRows(rows.length > 0 ? rows : ['']);
     } else if (formBase === 'fees') {
-      setFeesFields(mergeSavedLetterFields(feesDefaults(letterLocale), saved));
+      setFeesFields(mergeSavedLetterFields(feesDefaults(editLocale), saved));
     } else if (formBase === 'school-admission') {
       setSchoolAdmissionFields(
-        mergeSavedLetterFields(schoolAdmissionDefaults(letterLocale), saved),
+        mergeSavedLetterFields(schoolAdmissionDefaults(editLocale), saved),
       );
     } else if (formBase === 'college-admission') {
       setCollegeAdmissionFields(
-        mergeSavedLetterFields(collegeAdmissionDefaults(letterLocale), saved),
+        mergeSavedLetterFields(collegeAdmissionDefaults(editLocale), saved),
       );
     } else if (formBase === 'school-transfer') {
       setSchoolTransferFields(
-        mergeSavedLetterFields(schoolTransferDefaults(letterLocale), saved),
+        mergeSavedLetterFields(schoolTransferDefaults(editLocale), saved),
       );
     } else if (formBase === 'income') {
-      setIncomeFields(mergeSavedLetterFields(incomeDefaults(letterLocale), saved));
+      setIncomeFields(mergeSavedLetterFields(incomeDefaults(editLocale), saved));
     } else if (formBase === 'domicile' || formBase === 'identity') {
-      setDomicileFields(mergeSavedLetterFields(domicileDefaults(letterLocale), saved));
+      setDomicileFields(mergeSavedLetterFields(domicileDefaults(editLocale), saved));
     } else if (formBase === 'qr-birth-certificate') {
       setBirthCertificateFields(
-        mergeSavedLetterFields(birthCertificateDefaults(letterLocale), saved),
+        mergeSavedLetterFields(birthCertificateDefaults(editLocale), saved),
       );
     } else if (formBase === 'medical-assistance') {
       setMedicalAssistanceFields(
-        mergeSavedLetterFields(medicalAssistanceDefaults(letterLocale), saved),
+        mergeSavedLetterFields(medicalAssistanceDefaults(editLocale), saved),
       );
     } else if (formBase === 'sanjay-gandhi-niradhar') {
       setSanjayGandhiNiradharFields(
-        mergeSavedLetterFields(sanjayGandhiNiradharDefaults(letterLocale), saved),
+        mergeSavedLetterFields(sanjayGandhiNiradharDefaults(editLocale), saved),
       );
     } else if (formBase === 'ward') {
       setWardFields(
         mergeSavedLetterFields(
           wardDefaults(
-            letterLocale,
+            editLocale,
             resolveWardIssueForLetterContext(letter.letterType, service?.serviceName),
           ),
           saved,
         ),
       );
     } else if (isRationLetterType(formBase)) {
-      const merged = mergeSavedLetterFields(rationDefaults(letterLocale), saved);
+      const merged = mergeSavedLetterFields(rationDefaults(editLocale), saved);
       setRationFields(merged);
       setFamilyMemberRows(parseFamilyMemberRows(merged.familyMembers ?? ''));
     } else {
-      const merged = mergeSavedLetterFields(generalDefaults(letterLocale), saved);
+      const merged = mergeSavedLetterFields(generalDefaults(editLocale), saved);
       setGeneralFields(merged);
       setSecondaryToOpen(generalSecondaryHasContent(merged));
       setCopyToOpen(generalCopyHasContent(merged));
@@ -5252,19 +5287,19 @@ export function LetterGeneration({
     const known = new Set(
       Object.keys(
         getFieldsForLetterType(letter.letterType, {
-          generalFields: generalDefaults(letterLocale),
-          feesFields: feesDefaults(letterLocale),
-          schoolAdmissionFields: schoolAdmissionDefaults(letterLocale),
-          collegeAdmissionFields: collegeAdmissionDefaults(letterLocale),
-          schoolTransferFields: schoolTransferDefaults(letterLocale),
-          rationFields: rationDefaults(letterLocale),
-          incomeFields: incomeDefaults(letterLocale),
-          domicileFields: domicileDefaults(letterLocale),
-          birthCertificateFields: birthCertificateDefaults(letterLocale),
-          medicalAssistanceFields: medicalAssistanceDefaults(letterLocale),
-          sanjayGandhiNiradharFields: sanjayGandhiNiradharDefaults(letterLocale),
+          generalFields: generalDefaults(editLocale),
+          feesFields: feesDefaults(editLocale),
+          schoolAdmissionFields: schoolAdmissionDefaults(editLocale),
+          collegeAdmissionFields: collegeAdmissionDefaults(editLocale),
+          schoolTransferFields: schoolTransferDefaults(editLocale),
+          rationFields: rationDefaults(editLocale),
+          incomeFields: incomeDefaults(editLocale),
+          domicileFields: domicileDefaults(editLocale),
+          birthCertificateFields: birthCertificateDefaults(editLocale),
+          medicalAssistanceFields: medicalAssistanceDefaults(editLocale),
+          sanjayGandhiNiradharFields: sanjayGandhiNiradharDefaults(editLocale),
           wardFields: wardDefaults(
-            letterLocale,
+            editLocale,
             resolveWardIssueForLetterContext(letter.letterType, service?.serviceName),
           ),
         }),
@@ -6427,6 +6462,29 @@ export function LetterGeneration({
                     />
                   )}
                 </FieldGroup>
+                {generalLetterForm ? (
+                  <FieldGroup label={lt('letterGeneration.fields.letterLanguage')}>
+                    <Select
+                      value={letterLocale}
+                      onValueChange={(value: LetterLocale) => {
+                        if (value !== 'en' && value !== 'mr') return;
+                        setLetterLocale(value);
+                      }}
+                    >
+                      <SelectTrigger className="h-10">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="mr">
+                          {lt('letterGeneration.letterLanguage.mr')}
+                        </SelectItem>
+                        <SelectItem value="en">
+                          {lt('letterGeneration.letterLanguage.en')}
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FieldGroup>
+                ) : null}
                 {formTab === 'general' || isRationLetterPaperType(formTab) ? (
                   <FieldGroup label={lt('letterGeneration.fields.paperSize')}>
                     <Select
